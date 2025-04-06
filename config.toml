@@ -1,0 +1,2 @@
+dotfolder_path = "~/mydotfile"
+paths = ["~/test", "~/.config/kitty"]
