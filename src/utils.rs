@@ -11,14 +11,14 @@ pub fn check_path(path: &str) -> Result<String, String> {
 
     let home = get_home_dir()?;
 
-    // Important: don't resolve symlinks. We want the path *as passed*, not the real target.
-    let cleaned_path = input_path;
-
-    if !cleaned_path.starts_with(&home) {
+    if input_path.eq(&home) {
+        return Err("You can't add your home as path".to_string());
+    }
+    if !input_path.starts_with(&home) {
         return Err("Path is outside of the home directory".to_string());
     }
 
-    let relative = cleaned_path
+    let relative = input_path
         .strip_prefix(&home)
         .map_err(|_| "Failed to strip home prefix".to_string())?;
 
