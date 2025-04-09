@@ -1,5 +1,6 @@
+use std::io::ErrorKind;
+use std::path::PathBuf;
 use std::{env, fs};
-use std::path::{ PathBuf};
 
 pub fn check_path(path: &str) -> Result<String, String> {
     let input_path = expand_path(path)?;
@@ -30,7 +31,6 @@ pub fn get_home_dir() -> Result<PathBuf, String> {
         .map_err(|_| "Could not determine home directory".to_string())
 }
 
-
 pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     let mut path = if input.starts_with("~/") {
         let home = get_home_dir()?;
@@ -40,8 +40,7 @@ pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     };
 
     if !path.is_absolute() {
-        let cwd = env::current_dir()
-            .map_err(|_| "Failed to get current directory".to_string())?;
+        let cwd = env::current_dir().map_err(|_| "Failed to get current directory".to_string())?;
         path = cwd.join(path);
     }
 
@@ -58,9 +57,45 @@ pub fn delete(path: &PathBuf) -> Result<(), String> {
     }
     // If it's neither a symlink, file, nor directory
     else {
-        return Err("Path is not a valid symlink, file, or directory".to_string());
+        return Err("Path is not a valid file, or directory".to_string());
     }
 
     Ok(())
 }
 
+pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std::io::Error> {
+    if !source_path.exists() {
+        return Err(std::io::Error::new(
+            ErrorKind::NotFound,
+            format!("Source does not exist: {}", source_path.display()),
+        ));
+    }
+    if source_path.is_file() {
+        let parent = target_path
+            .parent()
+            .expect("Failed to get parent directory");
+        fs::create_dir_all(parent).expect("Failed to create directory");
+        fs::copy(source_path, target_path).expect("Failed to copy file");
+        return Ok(());
+    }
+    if source_path.is_dir() {
+        for entry in fs::read_dir(source_path)? {
+            let entry = entry?;
+            let entry_path = entry.path();
+
+            // Compute relative path from source root
+            let relative = entry_path
+                .strip_prefix(source_path)
+                .expect("Failed to get relative path");
+
+            let nested_target = target_path.join(relative);
+            copy_all(&entry_path, &nested_target)?;
+        }
+    } else {
+        return Err(std::io::Error::new(
+            ErrorKind::Other,
+            "Can not copy what is not a file or directory",
+        ));
+    }
+    Ok(())
+}

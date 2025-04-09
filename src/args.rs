@@ -5,6 +5,9 @@ use clap::{Args, Parser, Subcommand};
 pub struct LazyDotsArgs {
     #[clap(subcommand)]
     pub command: Command,
+
+    #[clap(long, hide = true)]
+    pub completion_shell: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -17,6 +20,13 @@ pub enum Command {
 
     /// Apply config
     ApplyConfig(ApplyConfigArg),
+
+    Completion {
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
+
+    DeLinkAll {},
 }
 
 #[derive(Debug, Args)]
@@ -34,5 +44,4 @@ pub struct RemoveArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct ApplyConfigArg {
-}
+pub struct ApplyConfigArg {}
