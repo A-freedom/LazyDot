@@ -1,0 +1,172 @@
+#compdef lazydot
+
+autoload -U is-at-least
+
+_lazydot() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'--completion-shell=[]:COMPLETION_SHELL:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_lazydot_commands" \
+"*::: :->lazydot" \
+&& ret=0
+    case $state in
+    (lazydot)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:lazydot-command-$line[1]:"
+        case $line[1] in
+            (add-path)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':path -- Path to add:_default' \
+&& ret=0
+;;
+(remove-path)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':path -- Path to remove:_default' \
+&& ret=0
+;;
+(apply-config)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_lazydot__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:lazydot-help-command-$line[1]:"
+        case $line[1] in
+            (add-path)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove-path)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(apply-config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_lazydot_commands] )) ||
+_lazydot_commands() {
+    local commands; commands=(
+'add-path:Add a path' \
+'remove-path:Remove a path' \
+'apply-config:Apply config' \
+'completion:' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'lazydot commands' commands "$@"
+}
+(( $+functions[_lazydot__add-path_commands] )) ||
+_lazydot__add-path_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot add-path commands' commands "$@"
+}
+(( $+functions[_lazydot__apply-config_commands] )) ||
+_lazydot__apply-config_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot apply-config commands' commands "$@"
+}
+(( $+functions[_lazydot__completion_commands] )) ||
+_lazydot__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot completion commands' commands "$@"
+}
+(( $+functions[_lazydot__help_commands] )) ||
+_lazydot__help_commands() {
+    local commands; commands=(
+'add-path:Add a path' \
+'remove-path:Remove a path' \
+'apply-config:Apply config' \
+'completion:' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'lazydot help commands' commands "$@"
+}
+(( $+functions[_lazydot__help__add-path_commands] )) ||
+_lazydot__help__add-path_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot help add-path commands' commands "$@"
+}
+(( $+functions[_lazydot__help__apply-config_commands] )) ||
+_lazydot__help__apply-config_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot help apply-config commands' commands "$@"
+}
+(( $+functions[_lazydot__help__completion_commands] )) ||
+_lazydot__help__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot help completion commands' commands "$@"
+}
+(( $+functions[_lazydot__help__help_commands] )) ||
+_lazydot__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot help help commands' commands "$@"
+}
+(( $+functions[_lazydot__help__remove-path_commands] )) ||
+_lazydot__help__remove-path_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot help remove-path commands' commands "$@"
+}
+(( $+functions[_lazydot__remove-path_commands] )) ||
+_lazydot__remove-path_commands() {
+    local commands; commands=()
+    _describe -t commands 'lazydot remove-path commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_lazydot" ]; then
+    _lazydot "$@"
+else
+    compdef _lazydot lazydot
+fi

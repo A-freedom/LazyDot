@@ -4,13 +4,13 @@ use dialoguer::MultiSelect;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
-pub struct DotManger {
+pub struct DotManager {
     config: Config,
     home_dir: PathBuf,
     dotfolder_path: PathBuf,
 }
-impl DotManger {
-    pub fn new() -> DotManger {
+impl DotManager {
+    pub fn new() -> DotManager {
         // init Config
         let config = Config::new();
 
