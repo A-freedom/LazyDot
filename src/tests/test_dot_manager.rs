@@ -1,6 +1,6 @@
 mod test {
     use crate::config::Config;
-    use crate::dot_manager::DotManger;
+    use crate::dot_manager::DotManager;
     use crate::utils::{copy_all, expand_path, get_home_dir};
     use std::path::{Path, PathBuf};
     use tempfile::tempdir;
@@ -114,7 +114,7 @@ mod test {
         setup_env_once();
         let mut config = Config::new();
         let paths = get_testing_paths();
-        let manager = DotManger::new();
+        let manager = DotManager::new();
 
         manager.sync();
         for result in config.paths.iter().map(|x| expand_path(x)) {
