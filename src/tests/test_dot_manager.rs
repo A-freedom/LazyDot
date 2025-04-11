@@ -59,7 +59,7 @@ mod test {
 
     #[test]
     #[serial_test::serial]
-    fn adding_and_removing_paths() {
+    fn can_1_adding_and_removing_paths() {
         setup_env_once();
         let mut config = Config::new();
         let paths = get_testing_paths();
@@ -81,11 +81,7 @@ mod test {
             let result = config.add_path(path.to_string());
             assert_eq!(result.err().unwrap(), "Path does not exist");
         });
-        vec![
-            "~/",
-            "",
-            get_home_dir().unwrap().to_str().unwrap(),
-        ]
+        vec!["~/", "", get_home_dir().unwrap().to_str().unwrap()]
             .iter()
             .for_each(|path| {
                 let result = config.add_path(path.to_string());
@@ -95,7 +91,7 @@ mod test {
 
     #[test]
     #[serial_test::serial]
-    fn path_normalization() {
+    fn can_2_path_normalization() {
         setup_env_once();
         let config = Config::new();
         assert_eq!(
@@ -110,7 +106,7 @@ mod test {
 
     #[test]
     #[serial_test::serial]
-    fn sync_and_delink() {
+    fn can_3_sync() {
         setup_env_once();
         let mut config = Config::new();
         let paths = get_testing_paths();
@@ -129,19 +125,28 @@ mod test {
             let result = config.add_path(path.to_string());
             assert!(result.is_ok());
         }
-
-        // test de_link_all
-        manager.delink_all();
-        for result in config.paths.iter().map(|x| expand_path(x)) {
-            let path = result.expect("Failed to get path");
-            // test if the paths is still exist and is a symlink after running the `Sync`
-            assert!(&path.exists());
-            assert!(!&path.is_symlink());
-        }
     }
+
     #[test]
     #[serial_test::serial]
-    fn removing_paths() {
+    fn can_4_delinking() {
+        setup_env_once();
+        let manager = DotManager::new();
+        let paths = get_testing_paths();
+        for path_str in paths {
+            let paths = expand_path(&path_str);
+            let mut list = Vec::new();
+            list.push(path_str);
+            assert!(&paths.clone().unwrap().is_symlink());
+            manager.delink(&list);
+            assert!(&paths.is_ok());
+            assert!(!&paths.clone().unwrap().is_symlink());
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn can_5_removing_paths() {
         let mut config = Config::new();
         let paths = get_testing_paths();
 

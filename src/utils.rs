@@ -99,3 +99,14 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
     }
     Ok(())
 }
+
+pub fn get_relative_path(path: &String) -> Result<PathBuf, String> {
+    // Expand ~ or $HOME to absolute path
+    let path_in_home = expand_path(path).expect("Failed to expand path");
+
+    let relative_path = path_in_home
+        .strip_prefix(get_home_dir()?)
+        .expect("Failed to strip prefix from home dir")
+        .to_path_buf();
+    Ok(relative_path)
+}

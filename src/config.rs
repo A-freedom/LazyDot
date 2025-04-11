@@ -8,7 +8,7 @@ pub struct Config {
     pub dotfolder_path: String,
     pub paths: Vec<String>,
 }
-
+// TODO implement returning Result
 impl Config {
     pub fn new() -> Config {
         let config_file = get_home_dir().unwrap().join(".config/lazydot.toml");
@@ -41,26 +41,21 @@ impl Config {
     pub fn add_path(&mut self, path: String) -> Result<(), String> {
         let path = check_path(&path)?;
         if self.paths.contains(&path) {
-            println!("{} is already exist", &path);
             return Ok(());
         }
-        println!("adding {}", &path);
         self.paths.push(path);
         self.save();
         Ok(())
     }
 
     pub fn remove_path(&mut self, path: String) {
-        // TODO fix this bug. the bug is that you can't remove a path that have been deleted
-        // and find a way to test for the output print of these functions
         let path = check_path(&path).expect("Path does not exist");
         for (i, v) in self.paths.iter().enumerate() {
             if *v == path {
                 self.paths.remove(i);
                 self.save();
-                return println!("path is deleted");
+                return;
             }
         }
-        println!("path is already not exist");
     }
 }

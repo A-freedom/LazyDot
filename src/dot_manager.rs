@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::utils::{copy_all, delete, expand_path, get_home_dir};
+use crate::utils::{copy_all, delete, expand_path, get_home_dir, get_relative_path};
 use dialoguer::MultiSelect;
 use std::fs;
 use std::os::unix::fs::symlink;
@@ -65,10 +65,11 @@ impl DotManager {
                     duplicated_paths.push((path_in_home, path_in_dotfolder));
                 }
                 (false, false) => {
-                    println!(
-                        "Warning: {} doesn't exist in home or dotfolder, skipping.",
-                        path_in_home.display()
-                    );
+                    // TODO make this to an error
+                    // println!(
+                    //     "Warning: {} doesn't exist in home or dotfolder, skipping.",
+                    //     path_in_home.display()
+                    // );
                 }
             }
         }
@@ -78,6 +79,7 @@ impl DotManager {
     }
 
     fn process_duplicated(&self, doulicted_paths: Vec<(PathBuf, PathBuf)>) {
+        // TODO add preset behave by a config or passed parameter
         println!(
             "\nSome files exist in both your home and dotfolder.\n\
              Select the ones to KEEP from home.\n\
@@ -124,20 +126,20 @@ impl DotManager {
     }
 
     pub fn delink_all(&self) {
-        for path in &self.config.paths {
+        self.delink(&self.config.paths);
+    }
+
+    pub fn delink(&self, paths: &Vec<String>) {
+        for path in paths {
             // Expand ~ or $HOME to absolute path
             let path_in_home = expand_path(path).expect("Failed to expand path");
 
-            // dbg!(&path_in_home,!path_in_home.is_symlink());
             // Skip if not a symlink
             if !path_in_home.is_symlink() {
-                println!("continue isn't symlink {:?}", &path_in_home);
                 continue;
             }
             // Get relative path inside home directory
-            let relative = path_in_home
-                .strip_prefix(&self.home_dir)
-                .expect("Failed to strip prefix from home dir");
+            let relative = get_relative_path(path).unwrap();
 
             // Build the full path in the dotfolder
             let path_in_dotfolder = self.dotfolder_path.join(relative);
@@ -149,6 +151,8 @@ impl DotManager {
             // Copy original file/dir from dotfolder back to home
             copy_all(&path_in_dotfolder, &path_in_home)
                 .expect("Failed to copy from dotfolder to home");
+
+            delete(&path_in_dotfolder).expect("Failed to delete the path in the dotfolder");
         }
     }
 }
