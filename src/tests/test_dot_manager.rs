@@ -1,3 +1,12 @@
+/**
+Note::
+this tests have to run in order, else tests are not guarantee to work correctly.
+Rust does not support running test in order, but I find work around. apparently test are running in
+alphabetically order if the test threads set to `1`
+```bash
+cargo test -- --test-threads 1
+```
+**/
 mod test {
     use crate::config::Config;
     use crate::dot_manager::DotManager;
