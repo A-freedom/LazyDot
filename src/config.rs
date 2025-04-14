@@ -23,7 +23,7 @@ impl Config {
 
         // config validations
         config.paths.iter().for_each(|path| {
-          check_path(path).expect(format!("{} is not a valid path", path).as_str());
+            check_path(path).expect(format!("{} is not a valid path", path).as_str());
         });
 
         config

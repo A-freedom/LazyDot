@@ -21,15 +21,16 @@ pub enum Command {
     /// Apply config
     ApplyConfig(ApplyConfigArg),
 
+    /// Unlinking all the paths
+    UnLinkAll,
+
+    /// unlink a paths or a list of paths
+    UnLink(UnLinkArgs),
+
     Completion {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
-
-    /// Unlinking all the paths
-    UnLinkAll,
-    /// unlink a paths or a list of paths
-    UnLink (UnLinkArgs),
 }
 
 #[derive(Debug, Args)]

@@ -4,7 +4,6 @@ mod dot_manager;
 mod tests {
     pub mod test_dot_manager;
     pub mod test_utils;
-
 }
 mod utils;
 
@@ -47,7 +46,7 @@ fn main() {
             let manager = DotManager::new();
             manager.delink_all();
         }
-        Command::UnLink (delink_args) => {
+        Command::UnLink(delink_args) => {
             let manager = DotManager::new();
             manager.delink(&delink_args.path);
         }
