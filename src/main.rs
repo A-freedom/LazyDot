@@ -43,9 +43,13 @@ fn main() {
             let mut cmd = LazyDotsArgs::command();
             generate(shell, &mut cmd, "lazydot", &mut io::stdout());
         }
-        Command::DeLinkAll {} => {
+        Command::UnLinkAll {} => {
             let manager = DotManager::new();
             manager.delink_all();
+        }
+        Command::UnLink (delink_args) => {
+            let manager = DotManager::new();
+            manager.delink(&delink_args.path);
         }
     }
 }

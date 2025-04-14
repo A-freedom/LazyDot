@@ -26,7 +26,10 @@ pub enum Command {
         shell: clap_complete::Shell,
     },
 
-    DeLinkAll {},
+    /// Unlinking all the paths
+    UnLinkAll,
+    /// unlink a paths or a list of paths
+    UnLink (UnLinkArgs),
 }
 
 #[derive(Debug, Args)]
@@ -45,3 +48,10 @@ pub struct RemoveArgs {
 
 #[derive(Debug, Args)]
 pub struct ApplyConfigArg {}
+
+#[derive(Debug, Args)]
+pub struct UnLinkArgs {
+    /// Path to unlink
+    #[clap(value_parser)]
+    pub path: Vec<String>,
+}

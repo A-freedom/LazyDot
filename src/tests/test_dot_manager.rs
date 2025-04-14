@@ -138,7 +138,7 @@ mod test {
 
     #[test]
     #[serial_test::serial]
-    fn can_4_delinking() {
+    fn can_4_unlink() {
         setup_env_once();
         let manager = DotManager::new();
         let paths = get_testing_paths();
