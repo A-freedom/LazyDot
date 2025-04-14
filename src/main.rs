@@ -4,6 +4,7 @@ mod dot_manager;
 mod tests {
     pub mod test_dot_manager;
     pub mod test_utils;
+
 }
 mod utils;
 
