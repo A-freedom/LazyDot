@@ -1,6 +1,9 @@
+use crate::config::{Config, DuplicateBehavior};
+use crate::dot_manager::DotManager;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::{env, fs};
+use tempfile::tempdir;
 
 pub fn check_path(path: &str) -> Result<String, String> {
     let input_path = expand_path(path)?;
@@ -116,4 +119,75 @@ pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> 
     let relative_path = get_relative_path(&path_in_home.to_str().unwrap().to_string())?;
     let path_in_dotfolder = expand_path(&config.dotfolder_path)?.join(&relative_path);
     Ok(path_in_dotfolder)
+}
+
+/// Resets test environment by:
+/// - Returning to project root
+/// - Creating a fresh temporary HOME
+/// - Copying the fake environment
+/// - Setting CWD to the new fake HOME
+pub fn reset_test_environment() {
+    // Make sure we always start from the project directory
+    let project_root_var = "lazydot_path_test";
+    if std::env::var(project_root_var).is_err() {
+        let cwd = std::env::current_dir().expect("Failed to get current dir");
+        unsafe {
+            std::env::set_var(
+                project_root_var,
+                cwd.to_str().expect("Invalid UTF-8 in cwd"),
+            );
+        }
+    }
+    let root = std::env::var(project_root_var).expect("Missing lazydot_path_test var");
+    std::env::set_current_dir(&root).expect("Failed to set current dir");
+
+    // Create a new temporary home directory
+    let temp_home_path = tempdir().expect("Failed to create temp dir").into_path();
+
+    // Set HOME to the new fake temp dir
+    unsafe {
+        std::env::set_var(
+            "HOME",
+            temp_home_path.to_str().expect("Invalid UTF-8 in temp home"),
+        );
+    }
+
+    // Copy fake home structure into temp HOME
+    let fake_env_path = PathBuf::from("src/tests/Data/fake_env");
+    if !fake_env_path.exists() {
+        panic!("fake_env not found at {:?}", fake_env_path);
+    }
+
+    copy_all(&fake_env_path, &temp_home_path).expect("Failed to copy fake_env to temp HOME");
+
+    // Set current working directory to fake HOME
+    std::env::set_current_dir(temp_home_path.to_str().unwrap())
+        .expect("Failed to change CWD to temp HOME");
+}
+
+/// Static test paths for config testing
+pub fn mock_dotfile_paths() -> Vec<String> {
+    let env_home = get_home_dir().expect("Failed to get home dir");
+    let extra = env_home.join(".config/app2/app_config2.toml");
+    let paths = ["~/.bashrc", ".config/app1", extra.to_str().unwrap()];
+    paths.map(|t| t.to_string()).to_vec()
+}
+
+/// Creates a config with the test paths added
+pub fn init_config_with_paths() -> Config {
+    let mut config = Config::new();
+    mock_dotfile_paths()
+        .iter()
+        .for_each(|path| config.add_path(path.clone()).unwrap());
+    config
+}
+
+/// Prepares and syncs the config using the given duplication strategy
+pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> (Config, DotManager) {
+    let mut config = init_config_with_paths();
+    config.defaults.on_duplicate = duplicate_behavior;
+    config.save();
+    let manager = DotManager::new();
+    manager.sync();
+    (config, manager)
 }
