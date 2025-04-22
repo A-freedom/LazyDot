@@ -100,7 +100,7 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
     Ok(())
 }
 
-pub fn get_relative_path(path: &String) -> Result<PathBuf, String> {
+fn get_relative_path(path: &String) -> Result<PathBuf, String> {
     // Expand ~ or $HOME to absolute path
     let path_in_home = expand_path(path).expect("Failed to expand path");
 
@@ -109,4 +109,11 @@ pub fn get_relative_path(path: &String) -> Result<PathBuf, String> {
         .expect("Failed to strip prefix from home dir")
         .to_path_buf();
     Ok(relative_path)
+}
+
+pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> {
+    let config = Config::new();
+    let relative_path = get_relative_path(&path_in_home.to_str().unwrap().to_string())?;
+    let path_in_dotfolder = expand_path(&config.dotfolder_path)?.join(&relative_path);
+    Ok(path_in_dotfolder)
 }
