@@ -1,13 +1,13 @@
-use crate::config::Config;
-use crate::utils::{copy_all, delete, expand_path, get_home_dir, get_relative_path};
+use crate::config::{Config, DuplicateBehavior};
+use crate::utils::{copy_all, delete, expand_path, get_home_dir, get_path_in_dotfolder};
 use dialoguer::MultiSelect;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
+
 pub struct DotManager {
     config: Config,
     home_dir: PathBuf,
-    dotfolder_path: PathBuf,
 }
 impl DotManager {
     pub fn new() -> DotManager {
@@ -26,7 +26,6 @@ impl DotManager {
         Self {
             home_dir: get_home_dir().unwrap(),
             config,
-            dotfolder_path,
         }
     }
 
@@ -39,8 +38,8 @@ impl DotManager {
                 panic!("{} is not inside the HOME directory", path);
             }
 
-            let relative = path_in_home.strip_prefix(&self.home_dir).unwrap();
-            let path_in_dotfolder = self.dotfolder_path.join(&relative);
+            let path_in_dotfolder =
+                get_path_in_dotfolder(&path_in_home).expect("failed to get path into dotfolder");
 
             match (path_in_home.exists(), path_in_dotfolder.exists()) {
                 (true, false) => {
@@ -61,15 +60,39 @@ impl DotManager {
                     if path_in_home.canonicalize().unwrap().eq(&path_in_dotfolder) {
                         continue;
                     }
-                    // if the paths is duplicated store them in a list for later processing
-                    duplicated_paths.push((path_in_home, path_in_dotfolder));
+                    match self.config.defaults.on_duplicate {
+                        DuplicateBehavior::Ask => {
+                            duplicated_paths.push((path_in_home, path_in_dotfolder));
+                        }
+                        DuplicateBehavior::OverwriteHome => {
+                            delete(&path_in_home).expect("Failed to delete path in Home");
+                            symlink(&path_in_dotfolder, &path_in_home)
+                                .expect("Failed to create symlink");
+                        }
+                        DuplicateBehavior::OverwriteDotfile => {
+                            delete(&path_in_dotfolder).expect("Failed to delete path in Dotfile");
+                            copy_all(&path_in_home, &path_in_dotfolder).unwrap();
+                            delete(&path_in_home).expect("Failed to delete path in Home");
+                            symlink(&path_in_dotfolder, &path_in_home)
+                                .expect("Failed to create symlink");
+                        }
+                        DuplicateBehavior::BackupHome => {
+                            let backup = path_in_home.with_extension("bak");
+                            fs::rename(&path_in_home, &backup)
+                                .expect("Failed to create backup of Home path");
+                            symlink(&path_in_dotfolder, &path_in_home)
+                                .expect("Failed to create symlink");
+                        }
+                        DuplicateBehavior::Skip => {
+                            // println!("Skipping duplicated path: {}", path_in_home.display());
+                        }
+                    }
                 }
                 (false, false) => {
-                    // TODO make this to an error
-                    // println!(
-                    //     "Warning: {} doesn't exist in home or dotfolder, skipping.",
-                    //     path_in_home.display()
-                    // );
+                    println!(
+                        "Warning: doesn't exist in home or dotfolder, skipping. \n {}",
+                        path_in_home.display()
+                    );
                 }
             }
         }
@@ -138,11 +161,9 @@ impl DotManager {
             if !path_in_home.is_symlink() {
                 continue;
             }
-            // Get relative path inside home directory
-            let relative = get_relative_path(path).unwrap();
 
             // Build the full path in the dotfolder
-            let path_in_dotfolder = self.dotfolder_path.join(relative);
+            let path_in_dotfolder = get_path_in_dotfolder(&path_in_home).unwrap();
 
             // dbg!(&path_in_dotfolder);
             // Remove the symlink in home
@@ -152,7 +173,8 @@ impl DotManager {
             copy_all(&path_in_dotfolder, &path_in_home)
                 .expect("Failed to copy from dotfolder to home");
 
-            delete(&path_in_dotfolder).expect("Failed to delete the path in the dotfolder");
+            // TODO make this behavior optional ether by a flag or setting in the config file
+            // delete(&path_in_dotfolder).expect("Failed to delete the path in the dotfolder");
         }
     }
 }

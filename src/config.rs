@@ -1,5 +1,5 @@
 use crate::utils::{check_path, get_home_dir};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::ErrorKind;
 
@@ -7,7 +7,28 @@ use std::io::ErrorKind;
 pub struct Config {
     pub dotfolder_path: String,
     pub paths: Vec<String>,
+    pub defaults: Defaults,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Defaults {
+    #[serde(default = "default_duplicate_behavior")]
+    pub on_duplicate: DuplicateBehavior,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DuplicateBehavior {
+    Ask,
+    OverwriteHome,
+    OverwriteDotfile,
+    BackupHome,
+    Skip,
+}
+fn default_duplicate_behavior() -> DuplicateBehavior {
+    DuplicateBehavior::Ask
+}
+
 // TODO implement returning Result
 impl Config {
     pub fn new() -> Config {
@@ -16,6 +37,9 @@ impl Config {
             return Config {
                 dotfolder_path: "~/mydotfolder".to_owned(),
                 paths: vec![],
+                defaults: Defaults {
+                    on_duplicate: DuplicateBehavior::Ask,
+                },
             };
         };
         let content = fs::read_to_string(&config_file).unwrap();
@@ -28,7 +52,7 @@ impl Config {
 
         config
     }
-    fn save(&self) {
+    pub fn save(&self) {
         let config_file = get_home_dir().unwrap().join(".config/lazydot.toml");
 
         let toml_string = toml::to_string(self).expect("Failed to serialize config");

@@ -33,8 +33,7 @@ fn main() {
             let mut config = Config::new();
             config.remove_path(remove_args.path);
         }
-        Command::ApplyConfig(apply_args) => {
-            dbg!(apply_args);
+        Command::ApplyConfig(_apply_args) => {
             let manager = DotManager::new();
             manager.sync();
         }

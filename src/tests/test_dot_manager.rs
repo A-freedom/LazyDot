@@ -1,167 +1,199 @@
-/**
-Note::
-this tests have to run in order, else tests are not guarantee to work correctly.
-Rust does not support running test in order, but I find work around. apparently test are running in
-alphabetically order if the test threads set to `1`
-```bash
-cargo test -- --test-threads 1
-```
-**/
 mod test {
-    use crate::config::Config;
-    use crate::dot_manager::DotManager;
-    use crate::utils::{copy_all, expand_path, get_home_dir};
-    use std::path::{Path, PathBuf};
-    use tempfile::tempdir;
+    use crate::config::DuplicateBehavior;
+    use crate::utils::{
+        expand_path, get_home_dir, get_path_in_dotfolder, init_config_with_paths,
+        mock_dotfile_paths, reset_test_environment, sync_config_with_manager,
+    };
+    use std::fs;
 
-    pub fn setup_env_once() {
-        // Save the original working dir if needed later
-        let path_var = "lazydot_path_test";
-        if std::env::var(path_var).is_err() {
-            let cwd = std::env::current_dir().expect("Failed to get current dir");
-            unsafe {
-                std::env::set_var(path_var, cwd.to_str().expect("Invalid UTF-8 in cwd"));
-            }
-        }
-
-        let old_dir = std::env::var(path_var).expect("Missing lazydot_path_test var");
-        std::env::set_current_dir(&old_dir).expect("Failed to set current dir");
-
-        // Create or get temp home
-        let lazy_temp_home = std::env::var("lazy_temp_home").unwrap_or_else(|_| {
-            let temp_path = tempdir().expect("Failed to create temp dir").into_path();
-            let temp_str = temp_path
-                .to_str()
-                .expect("Invalid UTF-8 in temp path")
-                .to_string();
-            unsafe {
-                std::env::set_var("lazy_temp_home", &temp_str);
-            }
-            temp_str
-        });
-
-        let dir = Path::new(&lazy_temp_home).to_path_buf();
-
-        // Set HOME
-        unsafe {
-            std::env::set_var("HOME", dir.to_str().expect("Invalid UTF-8 in temp home"));
-        }
-
-        // Copy fake home structure if it exists
-        let fake_env_path = PathBuf::from("src/tests/Data/fake_env");
-        if !fake_env_path.exists() {
-            panic!("fake_env not found at {:?}", fake_env_path);
-        }
-
-        copy_all(&fake_env_path, &dir).expect("Failed to copy fake_env to temp HOME");
-
-        // Set CWD to fake HOME
-        std::env::set_current_dir(&dir).expect("Failed to change CWD to temp HOME");
+    fn read_file(path: &std::path::Path) -> String {
+        fs::read_to_string(path).unwrap()
     }
 
-    fn get_testing_paths() -> Vec<String> {
-        let env_home = get_home_dir().expect("Failed to get home dir");
-        let binding = env_home.join(".config/app2/app_config.toml");
-        let paths = ["~/.bashrc", ".config/app1", binding.to_str().unwrap()];
-        paths.map(|t| t.to_string()).to_vec()
+    fn is_symlink(path: &str) -> bool {
+        expand_path(path).unwrap().is_symlink()
+    }
+
+    fn assert_is_symlink(path: &str) {
+        assert!(is_symlink(path), "Expected symlink: {}", path);
+    }
+
+    fn assert_not_symlink(path: &str) {
+        assert!(!is_symlink(path), "Expected not a symlink: {}", path);
     }
 
     #[test]
     #[serial_test::serial]
-    fn can_1_adding_and_removing_paths() {
-        setup_env_once();
-        let mut config = Config::new();
-        let paths = get_testing_paths();
+    fn test_add_invalid_paths() {
+        reset_test_environment();
+        let mut config = init_config_with_paths();
 
-        // adding paths
-        for path in &paths {
-            let result = config.add_path(path.to_string());
-            assert!(result.is_ok());
-        }
-        // adding path that does not exist.
-        vec![
+        let invalids = vec![
             "~/some_path",
             ".absolute_path",
             "~/nested/path/config.csv",
             "null",
-        ]
-        .iter()
-        .for_each(|path| {
-            let result = config.add_path(path.to_string());
-            assert_eq!(result.err().unwrap(), "Path does not exist");
-        });
-        vec!["~/", "", get_home_dir().unwrap().to_str().unwrap()]
-            .iter()
-            .for_each(|path| {
-                let result = config.add_path(path.to_string());
-                assert_eq!(result.err().unwrap(), "You can't add your home as path");
-            });
+        ];
+        for path in invalids {
+            let err = config.add_path(path.to_string()).unwrap_err();
+            assert!(err.contains("Path does not exist"), "Error: {}", err);
+        }
+
+        let home_path = get_home_dir().unwrap().to_str().unwrap().to_string();
+        for path in vec!["~/", "", &home_path] {
+            let err = config.add_path(path.to_string()).unwrap_err();
+            assert!(
+                err.contains("home"),
+                "Expected home path error, got: {}",
+                err
+            );
+        }
     }
 
     #[test]
     #[serial_test::serial]
-    fn can_2_path_normalization() {
-        setup_env_once();
-        let config = Config::new();
+    fn test_path_normalization() {
+        reset_test_environment();
+        let config = init_config_with_paths();
         assert_eq!(
             config.paths,
             vec![
                 "~/.bashrc",
                 "~/.config/app1",
-                "~/.config/app2/app_config.toml"
+                "~/.config/app2/app_config2.toml"
             ]
         );
     }
 
     #[test]
     #[serial_test::serial]
-    fn can_3_sync() {
-        setup_env_once();
-        let mut config = Config::new();
-        let paths = get_testing_paths();
-        let manager = DotManager::new();
+    fn test_sync_with_default_behavior() {
+        reset_test_environment();
+        let (config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            assert!(home.is_symlink());
+            assert!(dot.exists());
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_sync_with_overwrite_home() {
+        reset_test_environment();
+        let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
+
+        for path in &config.paths {
+            assert_is_symlink(path);
+        }
+
+        manager.delink(&config.paths);
+
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            if home.is_dir() {
+                continue;
+            }
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            fs::write(&dot, "old dotfile").unwrap();
+            fs::write(&home, "old home").unwrap();
+        }
 
         manager.sync();
-        for result in config.paths.iter().map(|x| expand_path(x)) {
-            let path = result.expect("Failed to get path");
-            // test if the paths is still exist and is a symlink after running the `Sync`
-            assert!(&path.exists());
-            assert!(&path.is_symlink());
-        }
 
-        // test if you add paths that is already is symlink
-        for path in &paths {
-            let result = config.add_path(path.to_string());
-            assert!(result.is_ok());
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            if home.is_dir() {
+                continue;
+            }
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            assert_eq!(read_file(&home), "old dotfile");
+            assert_eq!(read_file(&dot), "old dotfile");
         }
     }
 
     #[test]
     #[serial_test::serial]
-    fn can_4_unlink() {
-        setup_env_once();
-        let manager = DotManager::new();
-        let paths = get_testing_paths();
-        for path_str in paths {
-            let paths = expand_path(&path_str);
-            let mut list = Vec::new();
-            list.push(path_str);
-            assert!(&paths.clone().unwrap().is_symlink());
-            manager.delink(&list);
-            assert!(&paths.is_ok());
-            assert!(!&paths.clone().unwrap().is_symlink());
+    fn test_sync_with_overwrite_dotfolder() {
+        reset_test_environment();
+        let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteDotfile);
+
+        for path in &config.paths {
+            assert_is_symlink(path);
+        }
+
+        manager.delink(&config.paths);
+
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            if dot.is_dir() {
+                continue;
+            }
+            fs::write(&home, "old home").unwrap();
+            fs::write(&dot, "old dotfile").unwrap();
+        }
+
+        manager.sync();
+
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            if home.is_dir() {
+                continue;
+            }
+            assert_eq!(read_file(&home), "old home");
+            assert_eq!(read_file(&dot), "old home");
         }
     }
 
     #[test]
     #[serial_test::serial]
-    fn can_5_removing_paths() {
-        let mut config = Config::new();
-        let paths = get_testing_paths();
+    fn test_sync_with_skip() {
+        reset_test_environment();
+        let (config, manager) = sync_config_with_manager(DuplicateBehavior::Skip);
+
+        for path in &config.paths {
+            assert_is_symlink(path);
+        }
+
+        manager.delink(&config.paths);
+
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            if home.is_dir() {
+                continue;
+            }
+            fs::write(&home, "old home").unwrap();
+            fs::write(&dot, "old dotfile").unwrap();
+        }
+
+        manager.sync();
+
+        for path in &config.paths {
+            let home = expand_path(path).unwrap();
+            let dot = get_path_in_dotfolder(&home).unwrap();
+            if home.is_dir() {
+                continue;
+            }
+            assert_eq!(read_file(&home), "old home");
+            assert_eq!(read_file(&dot), "old dotfile");
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_delink_removes_symlinks() {
+        reset_test_environment();
+        let (_, manager) = sync_config_with_manager(DuplicateBehavior::Ask);
+        let paths = mock_dotfile_paths();
 
         for path in &paths {
-            config.remove_path(path.to_string());
+            assert_is_symlink(path);
+            manager.delink(&[path.clone()].to_vec());
+            assert_not_symlink(path);
         }
-        assert!(config.paths.is_empty());
     }
 }
