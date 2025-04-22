@@ -60,8 +60,33 @@ impl DotManager {
                     if path_in_home.canonicalize().unwrap().eq(&path_in_dotfolder) {
                         continue;
                     }
-                    // if the paths is duplicated store them in a list for later processing
-                    duplicated_paths.push((path_in_home, path_in_dotfolder));
+                    match self.config.defaults.on_duplicate {
+                        DuplicateBehavior::Ask => {
+                            duplicated_paths.push((path_in_home, path_in_dotfolder));
+                        }
+                        DuplicateBehavior::OverwriteHome => {
+                            delete(&path_in_home).expect("Failed to delete path in Home");
+                            symlink(&path_in_dotfolder, &path_in_home)
+                                .expect("Failed to create symlink");
+                        }
+                        DuplicateBehavior::OverwriteDotfile => {
+                            delete(&path_in_dotfolder).expect("Failed to delete path in Dotfile");
+                            copy_all(&path_in_home, &path_in_dotfolder).unwrap();
+                            delete(&path_in_home).expect("Failed to delete path in Home");
+                            symlink(&path_in_dotfolder, &path_in_home)
+                                .expect("Failed to create symlink");
+                        }
+                        DuplicateBehavior::BackupHome => {
+                            let backup = path_in_home.with_extension("bak");
+                            fs::rename(&path_in_home, &backup)
+                                .expect("Failed to create backup of Home path");
+                            symlink(&path_in_dotfolder, &path_in_home)
+                                .expect("Failed to create symlink");
+                        }
+                        DuplicateBehavior::Skip => {
+                            // println!("Skipping duplicated path: {}", path_in_home.display());
+                        }
+                    }
                 }
                 (false, false) => {
                     // TODO make this to an error
