@@ -1,13 +1,13 @@
-use crate::config::Config;
-use crate::utils::{copy_all, delete, expand_path, get_home_dir, get_relative_path};
+use crate::config::{Config, DuplicateBehavior};
+use crate::utils::{copy_all, delete, expand_path, get_home_dir, get_path_in_dotfolder};
 use dialoguer::MultiSelect;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
+
 pub struct DotManager {
     config: Config,
     home_dir: PathBuf,
-    dotfolder_path: PathBuf,
 }
 impl DotManager {
     pub fn new() -> DotManager {
@@ -26,7 +26,6 @@ impl DotManager {
         Self {
             home_dir: get_home_dir().unwrap(),
             config,
-            dotfolder_path,
         }
     }
 
@@ -39,8 +38,8 @@ impl DotManager {
                 panic!("{} is not inside the HOME directory", path);
             }
 
-            let relative = path_in_home.strip_prefix(&self.home_dir).unwrap();
-            let path_in_dotfolder = self.dotfolder_path.join(&relative);
+            let path_in_dotfolder =
+                get_path_in_dotfolder(&path_in_home).expect("failed to get path into dotfolder");
 
             match (path_in_home.exists(), path_in_dotfolder.exists()) {
                 (true, false) => {
@@ -138,11 +137,9 @@ impl DotManager {
             if !path_in_home.is_symlink() {
                 continue;
             }
-            // Get relative path inside home directory
-            let relative = get_relative_path(path).unwrap();
 
             // Build the full path in the dotfolder
-            let path_in_dotfolder = self.dotfolder_path.join(relative);
+            let path_in_dotfolder = get_path_in_dotfolder(&path_in_home).unwrap();
 
             // dbg!(&path_in_dotfolder);
             // Remove the symlink in home
@@ -152,7 +149,8 @@ impl DotManager {
             copy_all(&path_in_dotfolder, &path_in_home)
                 .expect("Failed to copy from dotfolder to home");
 
-            delete(&path_in_dotfolder).expect("Failed to delete the path in the dotfolder");
+            // TODO make this behavior optional ether by a flag or setting in the config file
+            // delete(&path_in_dotfolder).expect("Failed to delete the path in the dotfolder");
         }
     }
 }
