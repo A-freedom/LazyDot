@@ -89,11 +89,10 @@ impl DotManager {
                     }
                 }
                 (false, false) => {
-                    // TODO make this to an error
-                    // println!(
-                    //     "Warning: {} doesn't exist in home or dotfolder, skipping.",
-                    //     path_in_home.display()
-                    // );
+                    println!(
+                        "Warning: doesn't exist in home or dotfolder, skipping. \n {}",
+                        path_in_home.display()
+                    );
                 }
             }
         }
