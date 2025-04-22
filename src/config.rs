@@ -45,11 +45,6 @@ impl Config {
         let content = fs::read_to_string(&config_file).unwrap();
         let config: Config = toml::from_str(&content).expect("Failed to parse lazydot.toml");
 
-        // config validations
-        config.paths.iter().for_each(|path| {
-            check_path(path).expect(format!("{} is not a valid path", path).as_str());
-        });
-
         config
     }
     pub fn save(&self) {
