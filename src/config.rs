@@ -52,7 +52,7 @@ impl Config {
 
         config
     }
-    fn save(&self) {
+    pub fn save(&self) {
         let config_file = get_home_dir().unwrap().join(".config/lazydot.toml");
 
         let toml_string = toml::to_string(self).expect("Failed to serialize config");
