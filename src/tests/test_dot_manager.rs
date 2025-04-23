@@ -1,7 +1,8 @@
 mod test {
     use crate::config::DuplicateBehavior;
+    use crate::dot_manager::DotManager;
     use crate::utils::{
-        expand_path, get_home_dir, get_path_in_dotfolder, init_config_with_paths,
+        delete, expand_path, get_home_dir, get_path_in_dotfolder, init_config_with_paths,
         mock_dotfile_paths, reset_test_environment, sync_config_with_manager,
     };
     use std::fs;
@@ -194,6 +195,22 @@ mod test {
             assert_is_symlink(path);
             manager.delink(&[path.clone()].to_vec());
             assert_not_symlink(path);
+        }
+    }
+    #[test]
+    #[serial_test::serial]
+    fn test_restoring_symlinks() {
+        reset_test_environment();
+        let (config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
+        for path in &config.paths {
+            let home = expand_path(path).expect("failed to expand path");
+            delete(&home).expect("failed to delete old symlink");
+        }
+        let manager = DotManager::new();
+        manager.sync();
+        for path in &config.paths {
+            let home = expand_path(path).expect("failed to expand path");
+            assert!(home.is_symlink());
         }
     }
 }
