@@ -44,9 +44,7 @@ impl DotManager {
             match (path_in_home.exists(), path_in_dotfolder.exists()) {
                 (true, false) => {
                     // Init case: copy from home to dotfolder, delete original, create symlink
-                    fs::create_dir_all(path_in_dotfolder.parent().unwrap()).unwrap();
                     copy_all(&path_in_home, &path_in_dotfolder).unwrap();
-
                     delete(&path_in_home).expect("Failed to delete original");
                     symlink(&path_in_dotfolder, &path_in_home).expect("Failed to create symlink");
                 }
@@ -90,7 +88,7 @@ impl DotManager {
                 }
                 (false, false) => {
                     println!(
-                        "Warning: doesn't exist in home or dotfolder, skipping. \n {}",
+                        "Warning: path doesn't exist in home or dotfolder, skipping. \n {}",
                         path_in_home.display()
                     );
                 }

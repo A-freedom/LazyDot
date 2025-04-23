@@ -129,8 +129,8 @@ pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> 
 pub fn reset_test_environment() {
     // Make sure we always start from the project directory
     let project_root_var = "lazydot_path_test";
-    if std::env::var(project_root_var).is_err() {
-        let cwd = std::env::current_dir().expect("Failed to get current dir");
+    if env::var(project_root_var).is_err() {
+        let cwd = env::current_dir().expect("Failed to get current dir");
         unsafe {
             std::env::set_var(
                 project_root_var,
@@ -146,7 +146,7 @@ pub fn reset_test_environment() {
 
     // Set HOME to the new fake temp dir
     unsafe {
-        std::env::set_var(
+        env::set_var(
             "HOME",
             temp_home_path.to_str().expect("Invalid UTF-8 in temp home"),
         );
@@ -161,7 +161,7 @@ pub fn reset_test_environment() {
     copy_all(&fake_env_path, &temp_home_path).expect("Failed to copy fake_env to temp HOME");
 
     // Set current working directory to fake HOME
-    std::env::set_current_dir(temp_home_path.to_str().unwrap())
+    env::set_current_dir(temp_home_path.to_str().unwrap())
         .expect("Failed to change CWD to temp HOME");
 }
 
