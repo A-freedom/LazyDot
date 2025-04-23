@@ -44,7 +44,15 @@ impl Config {
         };
         let content = fs::read_to_string(&config_file).unwrap();
         let config: Config = toml::from_str(&content).expect("Failed to parse lazydot.toml");
-
+        for path in &config.paths {
+            if !(path.starts_with("~/") || path.starts_with("/")) {
+                panic!(
+                    "Invalid path: \"{}\" every path must start with `~/` or `/`",
+                    path
+                );
+            }
+        }
+        config.save();
         config
     }
     pub fn save(&self) {
