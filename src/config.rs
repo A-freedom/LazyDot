@@ -50,7 +50,7 @@ impl Config {
     pub fn save(&self) {
         let config_file = get_home_dir().unwrap().join(".config/lazydot.toml");
 
-        let toml_string = toml::to_string(self).expect("Failed to serialize config");
+        let toml_string = toml::to_string_pretty(self).expect("Failed to serialize config");
         if let Err(e) = fs::write(&config_file, &toml_string) {
             if e.kind() == ErrorKind::NotFound {
                 fs::File::create(&config_file).expect("Couldn't create config file");
