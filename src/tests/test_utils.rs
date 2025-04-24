@@ -98,7 +98,7 @@ pub(crate) mod test {
     #[serial_test::serial]
     fn test_get_home_dir() {
         let tmp_home = setup_env();
-        let path = get_home_dir().unwrap();
+        let path = get_home_dir();
         assert_eq!(path, tmp_home.path());
     }
 
@@ -111,7 +111,7 @@ pub(crate) mod test {
         create_file(&file_path, "hi");
 
         assert!(file_path.exists());
-        delete(&file_path).unwrap();
+        delete(&file_path);
         assert!(!file_path.exists());
     }
 
@@ -124,7 +124,7 @@ pub(crate) mod test {
         create_dir(&nested_dir);
         assert!(nested_dir.exists());
 
-        delete(&nested_dir).unwrap();
+        delete(&nested_dir);
         assert!(!nested_dir.exists());
     }
 
@@ -134,12 +134,8 @@ pub(crate) mod test {
         let _tmp_home = setup_env();
         let dir = tempdir().unwrap();
         let fake_path = dir.path().join("nonexistent");
-        let result = delete(&fake_path);
+        let result = std::panic::catch_unwind(|| delete(&fake_path));
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            "Path is not a valid file, or directory"
-        );
     }
 
     #[test]

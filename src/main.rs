@@ -24,6 +24,7 @@ fn main() {
         generate(shell, &mut cmd, "lazydot", &mut io::stdout());
         return;
     }
+
     match args.command {
         Command::AddPath(add_args) => {
             let mut config = Config::new();

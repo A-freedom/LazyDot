@@ -12,7 +12,7 @@ pub fn check_path(path: &str) -> Result<String, String> {
         return Err("Path does not exist".to_string());
     }
 
-    let home = get_home_dir()?;
+    let home = get_home_dir();
 
     if input_path.eq(&home) {
         return Err("You can't add your home as path".to_string());
@@ -28,15 +28,17 @@ pub fn check_path(path: &str) -> Result<String, String> {
     Ok(format!("~/{}", relative.display()))
 }
 
-pub fn get_home_dir() -> Result<PathBuf, String> {
-    env::var("HOME")
-        .map(PathBuf::from)
-        .map_err(|_| "Could not determine home directory".to_string())
+pub fn get_home_dir() -> PathBuf {
+    PathBuf::from(get_home_dir_string())
+}
+
+pub fn get_home_dir_string() -> String {
+    env::var("HOME").expect("missing HOME environment variable")
 }
 
 pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     let mut path = if input.starts_with("~/") {
-        let home = get_home_dir()?;
+        let home = get_home_dir();
         home.join(&input[2..])
     } else {
         PathBuf::from(input)
@@ -50,20 +52,21 @@ pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-pub fn delete(path: &PathBuf) -> Result<(), String> {
+pub fn delete(path: &PathBuf) {
     if path.is_file() || path.is_symlink() {
-        fs::remove_file(path).map_err(|e| e.to_string())?;
+        fs::remove_file(path).expect(&format!("Failed to delete {}", path.display()));
     }
     // Check if it's a directory and remove the directory recursively
     else if path.is_dir() {
-        fs::remove_dir_all(path).map_err(|e| e.to_string())?;
+        fs::remove_dir_all(path).expect(&format!("Failed to delete {}", path.display()));
     }
     // If it's neither a symlink, file, nor directory
     else {
-        return Err("Path is not a valid file, or directory".to_string());
+        panic!(
+            "Path: \"{}\" is not a valid file, or directory",
+            path.display()
+        );
     }
-
-    Ok(())
 }
 
 pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std::io::Error> {
@@ -108,7 +111,7 @@ fn get_relative_path(path: &String) -> Result<PathBuf, String> {
     let path_in_home = expand_path(path).expect("Failed to expand path");
 
     let relative_path = path_in_home
-        .strip_prefix(get_home_dir()?)
+        .strip_prefix(get_home_dir())
         .expect("Failed to strip prefix from home dir")
         .to_path_buf();
     Ok(relative_path)
@@ -129,8 +132,8 @@ pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> 
 pub fn reset_test_environment() {
     // Make sure we always start from the project directory
     let project_root_var = "lazydot_path_test";
-    if std::env::var(project_root_var).is_err() {
-        let cwd = std::env::current_dir().expect("Failed to get current dir");
+    if env::var(project_root_var).is_err() {
+        let cwd = env::current_dir().expect("Failed to get current dir");
         unsafe {
             std::env::set_var(
                 project_root_var,
@@ -146,7 +149,7 @@ pub fn reset_test_environment() {
 
     // Set HOME to the new fake temp dir
     unsafe {
-        std::env::set_var(
+        env::set_var(
             "HOME",
             temp_home_path.to_str().expect("Invalid UTF-8 in temp home"),
         );
@@ -161,13 +164,13 @@ pub fn reset_test_environment() {
     copy_all(&fake_env_path, &temp_home_path).expect("Failed to copy fake_env to temp HOME");
 
     // Set current working directory to fake HOME
-    std::env::set_current_dir(temp_home_path.to_str().unwrap())
+    env::set_current_dir(temp_home_path.to_str().unwrap())
         .expect("Failed to change CWD to temp HOME");
 }
 
 /// Static test paths for config testing
 pub fn mock_dotfile_paths() -> Vec<String> {
-    let env_home = get_home_dir().expect("Failed to get home dir");
+    let env_home = get_home_dir();
     let extra = env_home.join(".config/app2/app_config2.toml");
     let paths = ["~/.bashrc", ".config/app1", extra.to_str().unwrap()];
     paths.map(|t| t.to_string()).to_vec()
@@ -178,7 +181,7 @@ pub fn init_config_with_paths() -> Config {
     let mut config = Config::new();
     mock_dotfile_paths()
         .iter()
-        .for_each(|path| config.add_path(path.clone()).unwrap());
+        .for_each(|path| config.add_path(path.clone()).expect("Failed to add path"));
     config
 }
 
@@ -190,4 +193,10 @@ pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> (Confi
     let manager = DotManager::new();
     manager.sync();
     (config, manager)
+}
+
+pub fn get_home_and_dot_path(path: &String) -> (PathBuf, PathBuf) {
+    let home = expand_path(path).expect("failed to find home path");
+    let dot = get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
+    (home, dot)
 }

@@ -5,9 +5,11 @@ use std::io::ErrorKind;
 
 #[derive(serde::Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub defaults: Defaults,
+
+    // Always treat these paths as unexpanded. Use expand_path() before any real use.
     pub dotfolder_path: String,
     pub paths: Vec<String>,
-    pub defaults: Defaults,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,10 +31,9 @@ fn default_duplicate_behavior() -> DuplicateBehavior {
     DuplicateBehavior::Ask
 }
 
-// TODO implement returning Result
 impl Config {
     pub fn new() -> Config {
-        let config_file = get_home_dir().unwrap().join(".config/lazydot.toml");
+        let config_file = get_home_dir().join(".config/lazydot.toml");
         if !config_file.exists() {
             return Config {
                 dotfolder_path: "~/mydotfolder".to_owned(),
@@ -42,20 +43,23 @@ impl Config {
                 },
             };
         };
-        let content = fs::read_to_string(&config_file).unwrap();
+        let content = fs::read_to_string(&config_file).expect(
+            format!(
+                "Unable to read config file: {}",
+                config_file.to_str().unwrap()
+            )
+            .as_str(),
+        );
         let config: Config = toml::from_str(&content).expect("Failed to parse lazydot.toml");
-
-        // config validations
-        config.paths.iter().for_each(|path| {
-            check_path(path).expect(format!("{} is not a valid path", path).as_str());
-        });
-
+        config.validate_config();
         config
     }
     pub fn save(&self) {
-        let config_file = get_home_dir().unwrap().join(".config/lazydot.toml");
+        self.validate_config();
 
-        let toml_string = toml::to_string(self).expect("Failed to serialize config");
+        let config_file = get_home_dir().join(".config/lazydot.toml");
+
+        let toml_string = toml::to_string_pretty(self).expect("Failed to serialize config");
         if let Err(e) = fs::write(&config_file, &toml_string) {
             if e.kind() == ErrorKind::NotFound {
                 fs::File::create(&config_file).expect("Couldn't create config file");
@@ -85,6 +89,22 @@ impl Config {
                 self.save();
                 return;
             }
+        }
+    }
+    fn validate_config(&self) {
+        for path in &self.paths {
+            if !(path.starts_with("~/") || path.starts_with("/")) {
+                panic!(
+                    "Invalid path: \"{}\" every path must start with `~/` or `/`",
+                    path
+                );
+            }
+        }
+        if !self.dotfolder_path.starts_with("~/") {
+            panic!(
+                "Invalid path: \"{}\" every path must start with `~/`",
+                self.dotfolder_path
+            );
         }
     }
 }
