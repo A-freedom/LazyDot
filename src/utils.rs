@@ -32,6 +32,10 @@ pub fn get_home_dir() -> PathBuf {
     PathBuf::from(get_home_dir_string())
 }
 
+pub fn get_home_dir_string() -> String {
+    env::var("HOME").expect("missing HOME environment variable")
+}
+
 pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     let mut path = if input.starts_with("~/") {
         let home = get_home_dir();
@@ -189,4 +193,10 @@ pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> (Confi
     let manager = DotManager::new();
     manager.sync();
     (config, manager)
+}
+
+pub fn get_home_and_dot_path(path: &String) -> (PathBuf, PathBuf) {
+    let home = expand_path(path).expect("failed to find home path");
+    let dot = get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
+    (home, dot)
 }

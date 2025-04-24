@@ -2,13 +2,15 @@ mod test {
     use crate::config::DuplicateBehavior;
     use crate::dot_manager::DotManager;
     use crate::utils::{
-        delete, expand_path, get_home_dir, get_path_in_dotfolder, init_config_with_paths,
-        mock_dotfile_paths, reset_test_environment, sync_config_with_manager,
+        copy_all, delete, expand_path, get_home_and_dot_path, get_home_dir_string,
+        get_path_in_dotfolder, init_config_with_paths, mock_dotfile_paths, reset_test_environment,
+        sync_config_with_manager,
     };
     use std::fs;
+    use std::path::PathBuf;
 
     fn read_file(path: &std::path::Path) -> String {
-        fs::read_to_string(path).unwrap()
+        fs::read_to_string(path).expect("Failed to read file")
     }
 
     fn is_symlink(path: &str) -> bool {
@@ -40,7 +42,7 @@ mod test {
             assert!(err.contains("Path does not exist"), "Error: {}", err);
         }
 
-        let home_path = get_home_dir().unwrap().to_str().unwrap().to_string();
+        let home_path = get_home_dir_string();
         for path in vec!["~/", "", &home_path] {
             let err = config.add_path(path.to_string()).unwrap_err();
             assert!(
@@ -76,6 +78,9 @@ mod test {
             let dot = get_path_in_dotfolder(&home).unwrap();
             assert!(home.is_symlink());
             assert!(dot.exists());
+            let (home, _) = get_home_and_dot_path(path);
+            let dot =
+                get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
         }
     }
 
@@ -92,23 +97,25 @@ mod test {
         manager.delink(&config.paths);
 
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
+            let (home, _) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
             }
-            let dot = get_path_in_dotfolder(&home).unwrap();
-            fs::write(&dot, "old dotfile").unwrap();
-            fs::write(&home, "old home").unwrap();
+            let dot =
+                get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
+            fs::write(&dot, "old dotfile").expect("failed to write to file");
+            fs::write(&home, "old home").expect("failed to write to file");
         }
 
         manager.sync();
 
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
+            let (home, _) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
             }
-            let dot = get_path_in_dotfolder(&home).unwrap();
+            let dot =
+                get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
             assert_eq!(read_file(&home), "old dotfile");
             assert_eq!(read_file(&dot), "old dotfile");
         }
@@ -127,20 +134,18 @@ mod test {
         manager.delink(&config.paths);
 
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
-            let dot = get_path_in_dotfolder(&home).unwrap();
+            let (home, dot) = get_home_and_dot_path(path);
             if dot.is_dir() {
                 continue;
             }
-            fs::write(&home, "old home").unwrap();
-            fs::write(&dot, "old dotfile").unwrap();
+            fs::write(&home, "old home").expect("failed to write to file");
+            fs::write(&dot, "old dotfile").expect("failed to write to file");
         }
 
         manager.sync();
 
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
-            let dot = get_path_in_dotfolder(&home).unwrap();
+            let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
             }
@@ -162,8 +167,7 @@ mod test {
         manager.delink(&config.paths);
 
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
-            let dot = get_path_in_dotfolder(&home).unwrap();
+            let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
             }
@@ -174,8 +178,7 @@ mod test {
         manager.sync();
 
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
-            let dot = get_path_in_dotfolder(&home).unwrap();
+            let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
             }

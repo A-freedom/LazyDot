@@ -1,5 +1,7 @@
 use crate::config::{Config, DuplicateBehavior};
-use crate::utils::{copy_all, delete, expand_path, get_home_dir, get_path_in_dotfolder};
+use crate::utils::{
+    copy_all, delete, expand_path, get_home_and_dot_path, get_home_dir, get_path_in_dotfolder,
+};
 use dialoguer::MultiSelect;
 use std::fs;
 use std::os::unix::fs::symlink;
@@ -24,7 +26,7 @@ impl DotManager {
         }
 
         Self {
-            home_dir: get_home_dir().unwrap(),
+            home_dir: get_home_dir(),
             config,
         }
     }
@@ -32,20 +34,19 @@ impl DotManager {
     pub fn sync(&self) {
         let mut duplicated_paths: Vec<(PathBuf, PathBuf)> = Vec::new();
         for path in &self.config.paths {
-            let path_in_home = expand_path(path).expect("Failed to expand path");
+            let (path_in_home, path_in_dotfolder) = get_home_and_dot_path(path);
 
             if !path_in_home.starts_with(&self.home_dir) {
                 panic!("{} is not inside the HOME directory", path);
             }
-
-            let path_in_dotfolder =
-                get_path_in_dotfolder(&path_in_home).expect("failed to get path into dotfolder");
-
+            if path_in_home.is_symlink() {
+                delete(&path_in_home);
+            }
             match (path_in_home.exists(), path_in_dotfolder.exists()) {
                 (true, false) => {
                     // Init case: copy from home to dotfolder, delete original, create symlink
                     copy_all(&path_in_home, &path_in_dotfolder).unwrap();
-                    delete(&path_in_home).expect("Failed to delete original");
+                    delete(&path_in_home);
                     symlink(&path_in_dotfolder, &path_in_home).expect("Failed to create symlink");
                 }
                 (false, true) => {
@@ -63,14 +64,14 @@ impl DotManager {
                             duplicated_paths.push((path_in_home, path_in_dotfolder));
                         }
                         DuplicateBehavior::OverwriteHome => {
-                            delete(&path_in_home).expect("Failed to delete path in Home");
+                            delete(&path_in_home);
                             symlink(&path_in_dotfolder, &path_in_home)
                                 .expect("Failed to create symlink");
                         }
                         DuplicateBehavior::OverwriteDotfile => {
-                            delete(&path_in_dotfolder).expect("Failed to delete path in Dotfile");
+                            delete(&path_in_dotfolder);
                             copy_all(&path_in_home, &path_in_dotfolder).unwrap();
-                            delete(&path_in_home).expect("Failed to delete path in Home");
+                            delete(&path_in_home);
                             symlink(&path_in_dotfolder, &path_in_home)
                                 .expect("Failed to create symlink");
                         }
@@ -130,18 +131,18 @@ impl DotManager {
             // removing the selected path from the list
             let path = doulicted_paths.get(*index).expect("index out of range");
             // deleting the unwanted path in the dotfolder
-            delete(&path.1).expect("Failed to delete the path in the dotfile");
+            delete(&path.1);
             // copy the new path
             copy_all(&path.0, &path.1).unwrap();
             // deleting the path form the home
-            delete(&path.0).expect("Failed to delete the path in the home");
+            delete(&path.0);
             // create a symlink
             symlink(&path.1, &path.0).expect("Failed to create symlink");
         }
 
         // processing the unselected paths
         for path in doulicted_paths {
-            delete(&path.0).expect("Failed to delete the path in the home");
+            delete(&path.0);
             symlink(&path.1, &path.0).expect("Failed to create symlink");
         }
     }
@@ -165,7 +166,7 @@ impl DotManager {
 
             // dbg!(&path_in_dotfolder);
             // Remove the symlink in home
-            delete(&path_in_home).expect("Failed to delete symlink in home");
+            delete(&path_in_home);
 
             // Copy original file/dir from dotfolder back to home
             copy_all(&path_in_dotfolder, &path_in_home)
