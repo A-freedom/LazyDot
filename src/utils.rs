@@ -12,7 +12,7 @@ pub fn check_path(path: &str) -> Result<String, String> {
         return Err("Path does not exist".to_string());
     }
 
-    let home = get_home_dir()?;
+    let home = get_home_dir();
 
     if input_path.eq(&home) {
         return Err("You can't add your home as path".to_string());
