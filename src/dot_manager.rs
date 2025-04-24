@@ -39,7 +39,7 @@ impl DotManager {
             if !path_in_home.starts_with(&self.home_dir) {
                 panic!("{} is not inside the HOME directory", path);
             }
-            if path_in_home.is_symlink() {
+            if path_in_home.is_symlink() && !path_in_home.exists() {
                 delete(&path_in_home);
             }
             match (path_in_home.exists(), path_in_dotfolder.exists()) {
@@ -55,10 +55,6 @@ impl DotManager {
                         .expect("Failed to re-create symlink");
                 }
                 (true, true) => {
-                    // if paths already exist in dotfolder there is not need to do anything
-                    if path_in_home.canonicalize().unwrap().eq(&path_in_dotfolder) {
-                        continue;
-                    }
                     match self.config.defaults.on_duplicate {
                         DuplicateBehavior::Ask => {
                             duplicated_paths.push((path_in_home, path_in_dotfolder));

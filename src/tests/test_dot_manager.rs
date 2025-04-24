@@ -274,7 +274,7 @@ mod test {
     #[serial_test::serial]
     fn test_resync_with_existing_symlinks() {
         reset_test_environment();
-        let (mut config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
+        let (mut config, _) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
         let dotfolder_path =
             PathBuf::from(expand_path(&config.dotfolder_path).expect("failed to expand dotfolder"));
         let secondary_dotfolder_path =
