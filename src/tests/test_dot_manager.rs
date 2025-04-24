@@ -74,19 +74,20 @@ mod test {
         reset_test_environment();
         let (config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
         for path in &config.paths {
-            let home = expand_path(path).unwrap();
-            let dot = get_path_in_dotfolder(&home).unwrap();
-            assert!(home.is_symlink());
-            assert!(dot.exists());
             let (home, _) = get_home_and_dot_path(path);
             let dot =
                 get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
         }
     }
 
     #[test]
     #[serial_test::serial]
-    fn test_sync_with_overwrite_home() {
+    fn test_resync_with_overwrite_home() {
         reset_test_environment();
         let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
 
@@ -118,12 +119,17 @@ mod test {
                 get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
             assert_eq!(read_file(&home), "old dotfile");
             assert_eq!(read_file(&dot), "old dotfile");
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
         }
     }
 
     #[test]
     #[serial_test::serial]
-    fn test_sync_with_overwrite_dotfolder() {
+    fn test_resync_with_overwrite_dotfolder() {
         reset_test_environment();
         let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteDotfile);
 
@@ -151,6 +157,11 @@ mod test {
             }
             assert_eq!(read_file(&home), "old home");
             assert_eq!(read_file(&dot), "old home");
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
         }
     }
 
@@ -202,18 +213,116 @@ mod test {
     }
     #[test]
     #[serial_test::serial]
-    fn test_restoring_symlinks() {
+    fn test_resync_with_deleted_symlinks() {
         reset_test_environment();
-        let (config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
+        let (config, manager) = sync_config_with_manager(DuplicateBehavior::Ask);
         for path in &config.paths {
-            let home = expand_path(path).expect("failed to expand path");
-            delete(&home).expect("failed to delete old symlink");
+            let (home, dot) = get_home_and_dot_path(path);
+            delete(&home);
+            assert!(!home.exists());
+            assert!(dot.exists());
         }
-        let manager = DotManager::new();
+        manager.delink_all();
+
+        for path in &config.paths {
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(!home.exists());
+            assert!(dot.exists());
+        }
         manager.sync();
         for path in &config.paths {
-            let home = expand_path(path).expect("failed to expand path");
-            assert!(home.is_symlink());
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_resync_with_existing_broken_symlinks() {
+        reset_test_environment();
+        let (mut config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
+        let dotfolder_path =
+            PathBuf::from(expand_path(&config.dotfolder_path).expect("failed to expand dotfolder"));
+        let secondary_dotfolder_path =
+            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondry"));
+        copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
+        delete(&dotfolder_path);
+        assert!(!dotfolder_path.exists());
+        assert!(secondary_dotfolder_path.exists());
+
+        config.dotfolder_path = String::from("~/secondary");
+        config.save();
+
+        let manager = DotManager::new();
+        manager.sync();
+
+        for path in &config.paths {
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_resync_with_existing_symlinks() {
+        reset_test_environment();
+        let (mut config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
+        let dotfolder_path =
+            PathBuf::from(expand_path(&config.dotfolder_path).expect("failed to expand dotfolder"));
+        let secondary_dotfolder_path =
+            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondry"));
+        copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
+
+        assert!(dotfolder_path.exists());
+        assert!(secondary_dotfolder_path.exists());
+
+        config.dotfolder_path = String::from("~/secondary");
+        config.save();
+
+        let manager = DotManager::new();
+        manager.sync();
+
+        for path in &config.paths {
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_multiple_sync_and_delink_cycles() {
+        reset_test_environment();
+        let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
+        manager.delink_all();
+        for _ in 0..4 {
+            manager.sync();
+            for path in &config.paths {
+                // duplicating the paths
+                let (home, dot) = get_home_and_dot_path(path);
+                assert!(
+                    home.canonicalize()
+                        .expect("failed to canonicalize")
+                        .eq(&dot)
+                );
+            }
+            manager.delink_all();
+            for path in &config.paths {
+                let (home, dot) = get_home_and_dot_path(path);
+                assert!(home.exists() && !home.is_symlink());
+                assert!(dot.exists() && !dot.is_symlink());
+            }
         }
     }
 }
