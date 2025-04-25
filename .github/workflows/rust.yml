@@ -1,22 +1,61 @@
-name: Rust
+name: CI & Release
 
 on:
   push:
-    branches:
-    - main
-    - release/*
-
-env:
-  CARGO_TERM_COLOR: always
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  job1:
+  test:
+    name: 🧪 Test
     runs-on: ubuntu-latest
-    outputs:
-      output1: ${{ steps.artifact-upload-step.outputs.artifact-id }}
+
     steps:
-      - uses: actions/upload-artifact@v4
-        id: artifact-upload-step
+      - name: Checkout code
+        uses: actions/checkout@v4                                     # latest checkout :contentReference[oaicite:4]{index=4}
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1                                # current Rust toolchain installer :contentReference[oaicite:5]{index=5}
         with:
-          name: my-artifact
-          path: path/to/artifact/content/
+          toolchain: stable
+          override: true
+          components: clippy, rustfmt
+
+      - name: Cache Cargo registry, index & build outputs
+        uses: actions/cache@v4                                       # latest cache action :contentReference[oaicite:6]{index=6}
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run tests
+        run: cargo test --verbose
+
+  release:
+    name: 📦 Build & Upload
+    needs: test                                                   # only run if tests pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4                                   # ensure same code version :contentReference[oaicite:7]{index=7}
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1                              # install Rust again for this job :contentReference[oaicite:8]{index=8}
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build release binary
+        run: cargo build --release --verbose
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4                            # latest artifact upload :contentReference[oaicite:9]{index=9}
+        with:
+          name: my-app-release
+          path: target/release/my-app*                             # adjust to your binary name
