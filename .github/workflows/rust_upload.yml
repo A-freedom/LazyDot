@@ -1,0 +1,29 @@
+name: Rust
+
+on:
+  push:
+    branches:
+    - main
+    - release/*
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  upload:
+    name: Generate Build Artifacts
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Build
+      run: ./some-script --version=${{ matrix.version }} > my-binary
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: binary-${{ matrix.os }}-${{ matrix.version }}
+        path: my-binary
