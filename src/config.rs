@@ -1,7 +1,8 @@
+use crate::create_toml_temp::create_default_config_if_missing;
 use crate::utils::{check_path, get_home_dir};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::ErrorKind;
+use toml_edit::{Array, DocumentMut, Item, Value};
 
 #[derive(serde::Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -34,15 +35,7 @@ fn default_duplicate_behavior() -> DuplicateBehavior {
 impl Config {
     pub fn new() -> Config {
         let config_file = get_home_dir().join(".config/lazydot.toml");
-        if !config_file.exists() {
-            return Config {
-                dotfolder_path: "~/mydotfolder".to_owned(),
-                paths: vec![],
-                defaults: Defaults {
-                    on_duplicate: DuplicateBehavior::Ask,
-                },
-            };
-        };
+        create_default_config_if_missing();
         let content = fs::read_to_string(&config_file).expect(
             format!(
                 "Unable to read config file: {}",
@@ -59,16 +52,27 @@ impl Config {
 
         let config_file = get_home_dir().join(".config/lazydot.toml");
 
-        let toml_string = toml::to_string_pretty(self).expect("Failed to serialize config");
-        if let Err(e) = fs::write(&config_file, &toml_string) {
-            if e.kind() == ErrorKind::NotFound {
-                fs::File::create(&config_file).expect("Couldn't create config file");
-                fs::write(config_file, &toml_string)
-                    .expect("Failed to write after creating config");
-            } else {
-                panic!("Failed to write config: {}", e);
-            }
+        let content =
+            fs::read_to_string(&config_file).expect("Failed to read existing config for update");
+
+        let mut doc = content
+            .parse::<DocumentMut>()
+            .expect("Failed to parse config as TOML document");
+
+        doc["dotfolder_path"] = toml_edit::value(&self.dotfolder_path);
+
+        // Manually construct the array for paths
+        let mut paths_array = Array::default();
+        for path in &self.paths {
+            paths_array.push(path.as_str());
         }
+        doc["paths"] = Item::Value(Value::Array(paths_array));
+
+        doc["defaults"]["on_duplicate"] =
+            toml_edit::value(format!("{:?}", self.defaults.on_duplicate).to_lowercase());
+
+        fs::write(config_file, doc.to_string())
+            .expect("Failed to write updated config with preserved comments");
     }
 
     pub fn add_path(&mut self, path: String) -> Result<(), String> {
