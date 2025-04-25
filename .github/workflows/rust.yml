@@ -1,16 +1,15 @@
 # .github/workflows/ci-and-release.yml
 name: CI & Release
 
-# 1) On every push to main: build & test  
-# 2) On any pushed tag like v1.2.3: run the release job  
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
 
 permissions:
-  contents: write      # needed by release job to create/upload releases (GITHUB_TOKEN) :contentReference[oaicite:1]{index=1}
+  contents: write
 
 jobs:
   build:
@@ -19,13 +18,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4                                                           :contentReference[oaicite:2]{index=2}
+        uses: taiki-e/checkout-action@v1
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          override: true                                                                   :contentReference[oaicite:3]{index=3}
+          override: true
 
       - name: Cache Cargo registry & index
         uses: actions/cache@v3
@@ -33,9 +32,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}                  :contentReference[oaicite:4]{index=4}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build (release)
+      - name: Build release binary
         run: cargo build --release --verbose
 
       - name: Run tests
@@ -48,19 +47,19 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4                                                           :contentReference[oaicite:5]{index=5}
+        uses: taiki-e/checkout-action@v1
 
       - name: Create GitHub Release
-        uses: taiki-e/create-gh-release-action@v1                                          :contentReference[oaicite:6]{index=6}
+        uses: taiki-e/create-gh-release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           changelog: CHANGELOG.md
 
       - name: Build & Upload lazydot binary
-        uses: taiki-e/upload-rust-binary-action@v1                                         :contentReference[oaicite:7]{index=7}
+        uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: lazydot                                                                      # your executable name
-          include: LICENSE,README.md                                                        # extra files in the archive :contentReference[oaicite:8]{index=8}
-          tar: unix                                                                         # produce .tar.gz for Unix :contentReference[oaicite:9]{index=9}
-          zip: windows                                                                      # produce .zip for Windows :contentReference[oaicite:10]{index=10}
+          bin: lazydot
+          include: LICENSE,README.md
+          tar: unix
+          zip: windows
           token: ${{ secrets.GITHUB_TOKEN }}
