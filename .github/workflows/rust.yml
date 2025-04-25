@@ -1,4 +1,5 @@
-name: Rust CI
+# .github/workflows/ci.yml
+name: CI
 
 on:
   push:
@@ -11,40 +12,42 @@ env:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.os }}
+        # build on both x86_64 and ARM Linux
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
+          override: true
 
-      - name: Install cross (Linux only)
-        if: runner.os == 'Linux'
-        run: cargo install cross
+      - name: Cache cargo registry & index
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build release binary
-        run: |
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            cross build --release --target ${{ matrix.target }}
-          else
-            cargo build --release --target ${{ matrix.target }}
-          fi
+      - name: Build (release)
+        run: cargo build --release --target ${{ matrix.target }} --verbose
 
-      - name: Run tests (native only)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo test --verbose
+      - name: Run tests
+        run: cargo test --verbose --target ${{ matrix.target }}
+
+      - name: Upload release binary
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lazydot-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/lazydot
