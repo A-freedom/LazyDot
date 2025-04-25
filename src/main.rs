@@ -5,6 +5,7 @@ mod tests {
     pub mod test_dot_manager;
     pub mod test_utils;
 }
+mod create_toml_temp;
 mod utils;
 
 use crate::args::Command;
@@ -26,29 +27,36 @@ fn main() {
     }
 
     match args.command {
-        Command::AddPath(add_args) => {
+        Command::Register(add_args) => {
             let mut config = Config::new();
-            config.add_path(add_args.path).expect("failed to add path");
+            for path in add_args.paths {
+                config.add_path(path).expect("failed to add path");
+            }
         }
-        Command::RemovePath(remove_args) => {
+        Command::Unregister(remove_args) => {
             let mut config = Config::new();
-            config.remove_path(remove_args.path);
+            for path in remove_args.paths {
+                config.remove_path(path);
+            }
         }
-        Command::ApplyConfig(_apply_args) => {
+        Command::Deploy(_apply_args) => {
             let manager = DotManager::new();
             manager.sync();
         }
-        Command::Completion { shell } => {
+        Command::GenerateCompletion { shell } => {
             let mut cmd = LazyDotsArgs::command();
             generate(shell, &mut cmd, "lazydot", &mut io::stdout());
         }
-        Command::UnLinkAll {} => {
+        Command::Clean(delink_args) => {
             let manager = DotManager::new();
-            manager.delink_all();
-        }
-        Command::UnLink(delink_args) => {
-            let manager = DotManager::new();
-            manager.delink(&delink_args.path);
+            match delink_args.all {
+                true => {
+                    manager.delink_all();
+                }
+                false => {
+                    manager.delink(&delink_args.paths);
+                }
+            }
         }
     }
 }

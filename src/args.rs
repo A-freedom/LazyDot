@@ -1,7 +1,12 @@
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[clap(author, version)]
+#[clap(
+    author,
+    version = "0.2",
+    about = "Lazydot: CLI tool to manage and deploy your dotfiles efficiently",
+    long_about = "Lazydot automates symlink creation for your configuration files, enabling consistent environments across multiple systems."
+)]
 pub struct LazyDotsArgs {
     #[clap(subcommand)]
     pub command: Command,
@@ -12,47 +17,54 @@ pub struct LazyDotsArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Add a path
-    AddPath(AddArgs),
+    /// Register one or more dotfile paths in your config
+    #[clap(visible_alias = "r")]
+    Register(RegisterArgs),
 
-    /// Remove a path
-    RemovePath(RemoveArgs),
+    /// Remove one or more paths from your config
+    #[clap(visible_alias = "u")]
+    Unregister(UnregisterArgs),
 
-    /// Apply config
-    ApplyConfig(ApplyConfigArg),
+    /// Create or update all symlinks according to current config
+    #[clap(visible_alias = "d")]
+    Deploy(DeployArgs),
 
-    /// Unlinking all the paths
-    UnLinkAll,
+    /// Remove specified symlink(s); if none given, it removes all when --all is used
+    #[clap(visible_alias = "c")]
+    Clean(CleanArgs),
 
-    /// unlink a paths or a list of paths
-    UnLink(UnLinkArgs),
-
-    Completion {
+    /// Output shell completion script for given shell
+    #[clap(visible_alias = "g")]
+    GenerateCompletion {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
 }
 
 #[derive(Debug, Args)]
-pub struct AddArgs {
-    /// Path to add
-    #[clap(value_parser)]
-    pub path: String,
+pub struct RegisterArgs {
+    /// Path to add (at least one required)
+    #[arg(value_parser, required = true, num_args = 1..)]
+    pub paths: Vec<String>,
 }
 
 #[derive(Debug, Args)]
-pub struct RemoveArgs {
-    /// Path to remove
-    #[clap(value_parser)]
-    pub path: String,
+pub struct UnregisterArgs {
+    /// Path to remove (at least one required)
+    #[arg(value_parser, required = true, num_args = 1..)]
+    pub paths: Vec<String>,
 }
 
 #[derive(Debug, Args)]
-pub struct ApplyConfigArg {}
+pub struct DeployArgs {}
 
 #[derive(Debug, Args)]
-pub struct UnLinkArgs {
-    /// Path to unlink
-    #[clap(value_parser)]
-    pub path: Vec<String>,
+pub struct CleanArgs {
+    /// Unlink all managed symlinks
+    #[clap(long = "all", short = 'a', action)]
+    pub all: bool,
+
+    /// Specific paths to unlink
+    #[arg(value_parser, num_args = 1.., required_unless_present = "all")]
+    pub paths: Vec<String>,
 }

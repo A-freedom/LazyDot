@@ -89,7 +89,7 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
             let entry = entry?;
             let entry_path = entry.path();
 
-            // Compute relative path from source root
+            // Compute a relative path from source root
             let relative = entry_path
                 .strip_prefix(source_path)
                 .expect("Failed to get relative path");
@@ -107,7 +107,7 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
 }
 
 fn get_relative_path(path: &String) -> Result<PathBuf, String> {
-    // Expand ~ or $HOME to absolute path
+    // Expand ~ or $HOME to an absolute path
     let path_in_home = expand_path(path).expect("Failed to expand path");
 
     let relative_path = path_in_home
@@ -129,6 +129,7 @@ pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> 
 /// - Creating a fresh temporary HOME
 /// - Copying the fake environment
 /// - Setting CWD to the new fake HOME
+#[allow(dead_code)]
 pub fn reset_test_environment() {
     // Make sure we always start from the project directory
     let project_root_var = "lazydot_path_test";
@@ -163,12 +164,13 @@ pub fn reset_test_environment() {
 
     copy_all(&fake_env_path, &temp_home_path).expect("Failed to copy fake_env to temp HOME");
 
-    // Set current working directory to fake HOME
+    // Set the current working directory to fake HOME
     env::set_current_dir(temp_home_path.to_str().unwrap())
         .expect("Failed to change CWD to temp HOME");
 }
 
 /// Static test paths for config testing
+#[allow(dead_code)]
 pub fn mock_dotfile_paths() -> Vec<String> {
     let env_home = get_home_dir();
     let extra = env_home.join(".config/app2/app_config2.toml");
@@ -177,6 +179,7 @@ pub fn mock_dotfile_paths() -> Vec<String> {
 }
 
 /// Creates a config with the test paths added
+#[allow(dead_code)]
 pub fn init_config_with_paths() -> Config {
     let mut config = Config::new();
     mock_dotfile_paths()
@@ -186,6 +189,8 @@ pub fn init_config_with_paths() -> Config {
 }
 
 /// Prepares and syncs the config using the given duplication strategy
+#[allow(dead_code)]
+
 pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> (Config, DotManager) {
     let mut config = init_config_with_paths();
     config.defaults.on_duplicate = duplicate_behavior;

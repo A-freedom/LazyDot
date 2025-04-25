@@ -1,12 +1,12 @@
-use crate::utils::copy_all;
-use crate::utils::{check_path, delete, expand_path, get_home_dir};
-use std::fs;
-use std::path::PathBuf;
-use tempfile::TempDir;
-use tempfile::tempdir;
 #[cfg(test)]
+#[allow(dead_code)]
+#[allow(unused_imports)]
 pub(crate) mod test {
-    use super::*;
+    use crate::utils::{check_path, copy_all, delete, expand_path, get_home_dir};
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+    use tempfile::tempdir;
 
     pub fn create_file(path: &PathBuf, content: &str) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -147,7 +147,7 @@ pub(crate) mod test {
         let target = dir.path().join("b.txt");
         create_file(&source, "copy me");
 
-        super::copy_all(&source, &target).unwrap();
+        copy_all(&source, &target).unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "copy me");
     }
 
@@ -162,7 +162,7 @@ pub(crate) mod test {
 
         create_file(&nested_file, "nested data");
 
-        super::copy_all(&source_dir, &target_dir).unwrap();
+        copy_all(&source_dir, &target_dir).unwrap();
         let copied_file = target_dir.join("nested/file.txt");
         assert!(copied_file.exists());
         assert_eq!(fs::read_to_string(copied_file).unwrap(), "nested data");
