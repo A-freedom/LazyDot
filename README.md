@@ -69,7 +69,6 @@ And you can run it but running the executable
 ```
 
 ## Contributing
-
 Contributions are welcome. Fork the repository, make your changes, and submit a pull request.
 
 ## License

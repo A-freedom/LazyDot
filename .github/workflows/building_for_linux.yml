@@ -1,0 +1,65 @@
+name: Multi-Arch Linux Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+
+    env:
+      BINARY_NAME: lazydot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install cross-linker for aarch64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Package with cleaned name
+        run: |
+          case "${{ matrix.target }}" in
+            x86_64-unknown-linux-gnu) ARCH="linux-x86_64" ;;
+            aarch64-unknown-linux-gnu) ARCH="linux-arm64" ;;
+            *) echo "Unknown target"; exit 1 ;;
+          esac
+
+          ARCHIVE_NAME="${BINARY_NAME}-${ARCH}.tar.gz"
+          mkdir -p out
+          tar -czf "out/$ARCHIVE_NAME" -C target/${{ matrix.target }}/release $BINARY_NAME
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: out/${{ env.ARCHIVE_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
