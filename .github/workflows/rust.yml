@@ -1,29 +1,37 @@
-name: CI & Release
+name: Release on Tag
 
+# 1️⃣ Trigger only when a tag is pushed
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*'                           # any tag beginning with “v” :contentReference[oaicite:0]{index=0}
+
+# 2️⃣ Grant the token permission to create releases
+permissions:
+  contents: write                     # needed to create a Release via API :contentReference[oaicite:1]{index=1}
 
 jobs:
-  test:
-    name: 🧪 Test
+  release:
+    name: 📦 Build, Release & Upload
     runs-on: ubuntu-latest
 
     steps:
+      # ──────────────────────────────────────────────────────────────
+      # A) Check out the repo
       - name: Checkout code
-        uses: actions/checkout@v4                             # checks out your repo into $GITHUB_WORKSPACE :contentReference[oaicite:0]{index=0}
+        uses: actions/checkout@v4      # fetches your repo at $GITHUB_WORKSPACE :contentReference[oaicite:2]{index=2}
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1                        # installs Rust via rustup :contentReference[oaicite:1]{index=1}
+      # B) Install Rust toolchain
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1  # installs Rust via rustup, supports components :contentReference[oaicite:3]{index=3}
         with:
           toolchain: stable
           override: true
           components: clippy, rustfmt
 
-      - name: Cache Cargo registry, index & build outputs
-        uses: actions/cache@v4                               # cache action v4 with restore-keys :contentReference[oaicite:2]{index=2}
+      # C) Cache dependencies & previous build outputs
+      - name: Cache Cargo
+        uses: actions/cache@v4         # speeds up CI by caching ~/.cargo and target/ :contentReference[oaicite:4]{index=4}
         with:
           path: |
             ~/.cargo/registry
@@ -33,29 +41,37 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # D) Run tests to gate the release
       - name: Run tests
-        run: cargo test 
+        run: cargo test
 
-  release:
-    name: 📦 Build & Upload Release
-    needs: test                                             
-    runs-on: ubuntu-latest
+      # ──────────────────────────────────────────────────────────────
+      # E) Build optimized release binary
+      - name: Build release
+        run: cargo build --release
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4                            
-
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1                        
+      # ──────────────────────────────────────────────────────────────
+      # F) Create (or update) the GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1       # wraps “Create a Release” REST API :contentReference[oaicite:7]{index=7}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          toolchain: stable
-          override: true
+          tag_name: ${{ github.ref_name }}    # e.g. “v1.2.3”
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            Automated release for tag ${{ github.ref_name }}
+          draft: false
+          prerelease: false
 
-      - name: Build release binary
-        run: cargo build --release       
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4                    
+      # G) Upload the built binary as a release asset
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1   # wraps “Upload a Release Asset” REST API :contentReference[oaicite:8]{index=8}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: lazydot-release
-          path: target/release/lazydot*                       
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/release/lazydot*     # picks up `lazydot` (and `.exe` on Windows) :contentReference[oaicite:9]{index=9}
+          asset_name: lazydot
+          asset_content_type: application/octet-stream
