@@ -13,17 +13,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4                                     # latest checkout :contentReference[oaicite:4]{index=4}
+        uses: actions/checkout@v4                             # checks out your repo into $GITHUB_WORKSPACE :contentReference[oaicite:0]{index=0}
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1                                # current Rust toolchain installer :contentReference[oaicite:5]{index=5}
+        uses: actions-rs/toolchain@v1                        # installs Rust via rustup :contentReference[oaicite:1]{index=1}
         with:
           toolchain: stable
           override: true
           components: clippy, rustfmt
 
       - name: Cache Cargo registry, index & build outputs
-        uses: actions/cache@v4                                       # latest cache action :contentReference[oaicite:6]{index=6}
+        uses: actions/cache@v4                               # cache action v4 with restore-keys :contentReference[oaicite:2]{index=2}
         with:
           path: |
             ~/.cargo/registry
@@ -34,28 +34,28 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test 
 
   release:
-    name: 📦 Build & Upload
-    needs: test                                                   # only run if tests pass
+    name: 📦 Build & Upload Release
+    needs: test                                             
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4                                   # ensure same code version :contentReference[oaicite:7]{index=7}
+        uses: actions/checkout@v4                            
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1                              # install Rust again for this job :contentReference[oaicite:8]{index=8}
+        uses: actions-rs/toolchain@v1                        
         with:
           toolchain: stable
           override: true
 
       - name: Build release binary
-        run: cargo build --release --verbose
+        run: cargo build --release       
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4                            # latest artifact upload :contentReference[oaicite:9]{index=9}
+        uses: actions/upload-artifact@v4                    
         with:
-          name: my-app-release
-          path: target/release/lazydot*                             # adjust to your binary name
+          name: lazydot-release
+          path: target/release/lazydot*                       
