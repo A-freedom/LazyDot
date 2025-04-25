@@ -1,20 +1,36 @@
 use crate::utils::get_home_dir;
 
 const DEFAULT_CONFIG: &str = r#"
-# Lazydot config file
+# Lazydot Configuration File
 
-# Path to your dotfiles directory (must start with ~/)
+# Path to the dotfiles folder (must start with ~/)
 dotfolder_path = "~/mydotfolder"
 
-# List of dotfiles to manage (must start with ~/ or /)
+# List of dotfile paths to manage (each must start with ~/ or /)
+# paths = [
+#     "~/example/.bashrc","
+#     "~/example/.bashrc",
+#     "~/example/.vimrc",
+# ]
 paths = [
+    
 ]
 
 [defaults]
-# Behavior on duplicate:
-# ask, overwritehome, overwritedotfile, backuphome, skip
+# Behavior when a duplicate file is found at the destination:
+# - ask: Prompt the user to decide
+# - overwritehome: Overwrite the file in HOME with the dotfolder version
+# - overwritedotfile: Overwrite the dotfolder copy with the HOME version
+# - backuphome: Backup the HOME file before overwriting
+# - skip: Do nothing and skip the conflict
 on_duplicate = "ask"
+
+# Behavior after a link is disabled (delinked):
+# - remove: Remove the file from the dotfolder after restoring it to HOME (default)
+# - keep: Keep the file in the dotfolder even after restoring it to HOME
+on_delink = "remove"
 "#;
+
 
 pub fn create_default_config_if_missing() {
     let config_file = get_home_dir().join(".config/lazydot.toml");

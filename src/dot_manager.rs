@@ -1,25 +1,27 @@
-use crate::config::{Config, DuplicateBehavior};
+use crate::config::{Config, DuplicateBehavior, OnDelinkBehavior};
+use crate::current_state::CurrentState;
 use crate::utils::{
     copy_all, delete, expand_path, get_home_and_dot_path, get_home_dir, get_path_in_dotfolder,
 };
 use dialoguer::MultiSelect;
+use std::collections::HashSet;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 
 pub struct DotManager {
-    config: Config,
+    // the pub(crate) is needed for testing
+    pub(crate) config: Config,
     home_dir: PathBuf,
+    pub(crate) current_state: CurrentState,
 }
+
 impl DotManager {
     pub fn new() -> DotManager {
-        // init Config
         let config = Config::new();
-
-        // init dotfolder
-        let dotfolder_path = expand_path(&config.dotfolder_path).unwrap();
+        let dotfolder_path = expand_path(&config.dotfolder_path).expect("Failed to expand path");
         if !dotfolder_path.exists() {
-            fs::create_dir_all(&dotfolder_path).unwrap();
+            fs::create_dir_all(&dotfolder_path).expect("Failed to create dotfolder");
         }
         if !dotfolder_path.is_dir() {
             panic!("{} is not a directory", dotfolder_path.display());
@@ -27,11 +29,16 @@ impl DotManager {
 
         Self {
             home_dir: get_home_dir(),
+            current_state: CurrentState::new(&config),
             config,
         }
     }
 
     pub fn sync(&self) {
+        let paths_tobe_unlinked =
+            Self::find_paths_to_unlink(&self.current_state.paths, &self.config.paths);
+        self.delink(&paths_tobe_unlinked);
+
         let mut duplicated_paths: Vec<(PathBuf, PathBuf)> = Vec::new();
         for path in &self.config.paths {
             let (path_in_home, path_in_dotfolder) = get_home_and_dot_path(path);
@@ -39,24 +46,26 @@ impl DotManager {
             if !path_in_home.starts_with(&self.home_dir) {
                 panic!("{} is not inside the HOME directory", path);
             }
+            // check if `path_in_home` is broken link
             if path_in_home.is_symlink() && !path_in_home.exists() {
                 delete(&path_in_home);
             }
             match (path_in_home.exists(), path_in_dotfolder.exists()) {
                 (true, false) => {
-                    // Init case: copy from home to dotfolder, delete original, create symlink
                     copy_all(&path_in_home, &path_in_dotfolder).unwrap();
                     delete(&path_in_home);
                     symlink(&path_in_dotfolder, &path_in_home).expect("Failed to create symlink");
                 }
                 (false, true) => {
-                    // Restore symlink: original missing but dotfolder has it
                     symlink(&path_in_dotfolder, &path_in_home)
                         .expect("Failed to re-create symlink");
                 }
                 (true, true) => {
                     match self.config.defaults.on_duplicate {
                         DuplicateBehavior::Ask => {
+                            if path_in_home.canonicalize().expect("Failed to canonicalize path").eq(&path_in_dotfolder) {
+                                continue;
+                            }
                             duplicated_paths.push((path_in_home, path_in_dotfolder));
                         }
                         DuplicateBehavior::OverwriteHome => {
@@ -79,7 +88,7 @@ impl DotManager {
                                 .expect("Failed to create symlink");
                         }
                         DuplicateBehavior::Skip => {
-                            // println!("Skipping duplicated path: {}", path_in_home.display());
+                            // skip
                         }
                     }
                 }
@@ -94,50 +103,49 @@ impl DotManager {
         if !duplicated_paths.is_empty() {
             self.process_duplicated(duplicated_paths);
         }
+
+        self.current_state.save(&self.config);
     }
 
-    fn process_duplicated(&self, doulicted_paths: Vec<(PathBuf, PathBuf)>) {
-        // TODO add preset behave by a config or passed parameter
+    fn process_duplicated(&self, duplicated_paths: Vec<(PathBuf, PathBuf)>) {
         println!(
             "\nSome files exist in both your home and dotfolder.\n\
              Select the ones to KEEP from home.\n\
              - 'Select All' = keep all home versions\n\
              - No selection = use dotfolder versions\n"
         );
+
         let options = [
             vec!["Select All"],
-            doulicted_paths
+            duplicated_paths
                 .iter()
                 .map(|it| it.0.to_str().unwrap())
                 .collect::<Vec<_>>(),
         ]
         .concat();
 
-        let selected = MultiSelect::new().items(&options).interact().unwrap();
+        let selected = MultiSelect::new().items(&options).interact().expect("Failed to select");
 
         let selected_indices = if !selected.is_empty() && selected[0] == 0 {
-            // "Select All" was picked
-            (0..doulicted_paths.len()).collect::<Vec<_>>()
+            (0..duplicated_paths.len()).collect::<Vec<_>>()
         } else {
-            // Adjust indices (skip the "Select All" at 0)
             selected.iter().map(|i| i - 1).collect::<Vec<_>>()
         };
-        // processing the selected paths
+
+        // Handle selected paths
         for index in &selected_indices {
-            // removing the selected path from the list
-            let path = doulicted_paths.get(*index).expect("index out of range");
-            // deleting the unwanted path in the dotfolder
+            let path = duplicated_paths.get(*index).expect("Index out of range");
             delete(&path.1);
-            // copy the new path
             copy_all(&path.0, &path.1).unwrap();
-            // deleting the path form the home
             delete(&path.0);
-            // create a symlink
             symlink(&path.1, &path.0).expect("Failed to create symlink");
         }
 
-        // processing the unselected paths
-        for path in doulicted_paths {
+        // Handle unselected paths
+        for (i, path) in duplicated_paths.into_iter().enumerate() {
+            if selected_indices.contains(&i) {
+                continue; // already handled
+            }
             delete(&path.0);
             symlink(&path.1, &path.0).expect("Failed to create symlink");
         }
@@ -147,29 +155,48 @@ impl DotManager {
         self.delink(&self.config.paths);
     }
 
-    pub fn delink(&self, paths: &Vec<String>) {
+    pub fn delink(&self, paths: &[String]) {
         for path in paths {
-            // Expand ~ or $HOME to absolute path
             let path_in_home = expand_path(path).expect("Failed to expand path");
 
-            // Skip if not a symlink
             if !path_in_home.is_symlink() {
+                eprintln!("{} is not a symlink", path);
                 continue;
             }
 
-            // Build the full path in the dotfolder
-            let path_in_dotfolder = get_path_in_dotfolder(&path_in_home).unwrap();
+            let path_in_dotfolder =
+                get_path_in_dotfolder(&path_in_home).expect("Failed to get path in dotfolder");
 
-            // dbg!(&path_in_dotfolder);
-            // Remove the symlink in home
+            if !path_in_dotfolder.exists() {
+                eprintln!("{} doesn't exist in dotfolder", path);
+                continue;
+            }
+            if !path_in_home.canonicalize().expect("Failed to canonicalize path").eq(&path_in_dotfolder) {
+                eprintln!("{} is not a symlink to dotfolder", path);
+                continue;
+            }
+            
+            
             delete(&path_in_home);
 
-            // Copy original file/dir from dotfolder back to home
             copy_all(&path_in_dotfolder, &path_in_home)
                 .expect("Failed to copy from dotfolder to home");
-
-            // TODO make this behavior optional ether by a flag or setting in the config file
-            // delete(&path_in_dotfolder).expect("Failed to delete the path in the dotfolder");
+            match self.config.defaults.on_delink {
+                OnDelinkBehavior::Remove => {
+                    delete(&path_in_dotfolder);
+                }
+                OnDelinkBehavior::Keep => {}
+            } 
         }
+    }
+
+    fn find_paths_to_unlink(current_paths: &[String], config_paths: &[String]) -> Vec<String> {
+        let current_set: HashSet<_> = current_paths.iter().collect();
+        let config_set: HashSet<_> = config_paths.iter().collect();
+
+        current_set
+            .difference(&config_set)
+            .map(|s| (*s).clone())
+            .collect()
     }
 }
