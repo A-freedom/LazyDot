@@ -17,24 +17,28 @@ pub struct LazyDotsArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Register one or more dotfile paths in your config
+    /// Register one or more dotfile paths in your config.
     #[clap(visible_alias = "r")]
     Register(RegisterArgs),
 
-    /// Remove one or more paths from your config
+    /// Remove one or more paths from your config.
     #[clap(visible_alias = "u")]
     Unregister(UnregisterArgs),
 
-    /// Create or update all symlinks according to current config
+    /// Create or update all symlinks according to current config.
     #[clap(visible_alias = "d")]
     Deploy(DeployArgs),
 
-    /// Remove specified symlink(s); if none given, it removes all when --all is used
-    #[clap(visible_alias = "c")]
-    Clean(CleanArgs),
+    #[clap(
+        alias = "D",
+        long_about = "Unlink selected paths and restore files from dotfolder.\n\
+        Does not edit the config or delete dotfolder files.\n\
+        Use `unregister` + `deploy` to fully stop managing a path."
+    )]
+    DisableLink(DisableLinkArgs),
 
-    /// Output shell completion script for given shell
-    #[clap(visible_alias = "g")]
+    /// Output shell completion script for given shell.
+    #[clap(visible_alias = "g",hide = true)]
     GenerateCompletion {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
@@ -59,7 +63,7 @@ pub struct UnregisterArgs {
 pub struct DeployArgs {}
 
 #[derive(Debug, Args)]
-pub struct CleanArgs {
+pub struct DisableLinkArgs {
     /// Unlink all managed symlinks
     #[clap(long = "all", short = 'a', action)]
     pub all: bool,

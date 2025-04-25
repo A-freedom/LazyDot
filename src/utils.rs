@@ -191,13 +191,13 @@ pub fn init_config_with_paths() -> Config {
 /// Prepares and syncs the config using the given duplication strategy
 #[allow(dead_code)]
 
-pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> (Config, DotManager) {
+pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> DotManager {
     let mut config = init_config_with_paths();
     config.defaults.on_duplicate = duplicate_behavior;
     config.save();
     let manager = DotManager::new();
     manager.sync();
-    (config, manager)
+    manager
 }
 
 pub fn get_home_and_dot_path(path: &String) -> (PathBuf, PathBuf) {

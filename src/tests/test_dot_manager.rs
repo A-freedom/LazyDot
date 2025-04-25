@@ -3,7 +3,7 @@
 #[allow(unused_imports)]
 mod test {
 
-    use crate::config::DuplicateBehavior;
+    use crate::config::{DuplicateBehavior, OnDelinkBehavior};
     use crate::dot_manager::DotManager;
     use crate::utils::{
         copy_all, delete, expand_path, get_home_and_dot_path, get_home_dir_string,
@@ -76,8 +76,8 @@ mod test {
     #[serial_test::serial]
     fn test_sync_with_default_behavior() {
         reset_test_environment();
-        let (config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
-        for path in &config.paths {
+        let manager = sync_config_with_manager(DuplicateBehavior::Ask);
+        for path in &manager.config.paths {
             let (home, _) = get_home_and_dot_path(path);
             let dot =
                 get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
@@ -93,15 +93,14 @@ mod test {
     #[serial_test::serial]
     fn test_resync_with_overwrite_home() {
         reset_test_environment();
-        let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
+        let manager = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             assert_is_symlink(path);
         }
 
-        manager.delink(&config.paths);
-
-        for path in &config.paths {
+        manager.delink(&manager.config.paths);
+        for path in &manager.config.paths {
             let (home, _) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -114,7 +113,7 @@ mod test {
 
         manager.sync();
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, _) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -135,15 +134,16 @@ mod test {
     #[serial_test::serial]
     fn test_resync_with_overwrite_dotfolder() {
         reset_test_environment();
-        let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteDotfile);
+        let mut manager = sync_config_with_manager(DuplicateBehavior::OverwriteDotfile);
+        manager.config.defaults.on_delink = OnDelinkBehavior::Keep;
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             assert_is_symlink(path);
         }
 
-        manager.delink(&config.paths);
+        manager.delink(&manager.config.paths);
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             if dot.is_dir() {
                 continue;
@@ -154,7 +154,7 @@ mod test {
 
         manager.sync();
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -173,15 +173,15 @@ mod test {
     #[serial_test::serial]
     fn test_sync_with_skip() {
         reset_test_environment();
-        let (config, manager) = sync_config_with_manager(DuplicateBehavior::Skip);
+        let manager = sync_config_with_manager(DuplicateBehavior::Skip);
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             assert_is_symlink(path);
         }
 
-        manager.delink(&config.paths);
+        manager.delink(&manager.config.paths);
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -192,7 +192,7 @@ mod test {
 
         manager.sync();
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -204,23 +204,44 @@ mod test {
 
     #[test]
     #[serial_test::serial]
-    fn test_delink_removes_symlinks() {
+    fn test_delink_removes_symlinks_with_default_behavior_remove() {
         reset_test_environment();
-        let (_, manager) = sync_config_with_manager(DuplicateBehavior::Ask);
+        let manager = sync_config_with_manager(DuplicateBehavior::Ask);
         let paths = mock_dotfile_paths();
 
         for path in &paths {
-            assert_is_symlink(path);
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(home.is_symlink());
+            assert!(home.canonicalize().unwrap().eq(&dot));
             manager.delink(&[path.clone()].to_vec());
-            assert_not_symlink(path);
+            assert!(!home.is_symlink());
+            assert!(!dot.exists());
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_delink_removes_symlinks_with_default_behavior_keep() {
+        reset_test_environment();
+        let mut manager = sync_config_with_manager(DuplicateBehavior::Ask);
+        manager.config.defaults.on_delink = OnDelinkBehavior::Keep;
+        let paths = mock_dotfile_paths();
+
+        for path in &paths {
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(home.is_symlink());
+            assert!(home.canonicalize().unwrap().eq(&dot));
+            manager.delink(&[path.clone()].to_vec());
+            assert!(!home.is_symlink());
+            assert!(dot.exists());
         }
     }
     #[test]
     #[serial_test::serial]
     fn test_resync_with_deleted_symlinks() {
         reset_test_environment();
-        let (config, manager) = sync_config_with_manager(DuplicateBehavior::Ask);
-        for path in &config.paths {
+        let manager = sync_config_with_manager(DuplicateBehavior::Ask);
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             delete(&home);
             assert!(!home.exists());
@@ -228,13 +249,13 @@ mod test {
         }
         manager.delink_all();
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             assert!(!home.exists());
             assert!(dot.exists());
         }
         manager.sync();
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             assert!(
                 home.canonicalize()
@@ -248,9 +269,10 @@ mod test {
     #[serial_test::serial]
     fn test_resync_with_existing_broken_symlinks() {
         reset_test_environment();
-        let (mut config, _) = sync_config_with_manager(DuplicateBehavior::Ask);
-        let dotfolder_path =
-            PathBuf::from(expand_path(&config.dotfolder_path).expect("failed to expand dotfolder"));
+        let mut manager = sync_config_with_manager(DuplicateBehavior::Ask);
+        let dotfolder_path = PathBuf::from(
+            expand_path(&manager.config.dotfolder_path).expect("failed to expand dotfolder"),
+        );
         let secondary_dotfolder_path =
             dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondry"));
         copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
@@ -258,13 +280,11 @@ mod test {
         assert!(!dotfolder_path.exists());
         assert!(secondary_dotfolder_path.exists());
 
-        config.dotfolder_path = String::from("~/secondary");
-        config.save();
-
-        let manager = DotManager::new();
+        manager.config.dotfolder_path = String::from("~/secondary");
+        manager.config.save();
         manager.sync();
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             assert!(
                 home.canonicalize()
@@ -278,9 +298,10 @@ mod test {
     #[serial_test::serial]
     fn test_resync_with_existing_symlinks() {
         reset_test_environment();
-        let (mut config, _) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
-        let dotfolder_path =
-            PathBuf::from(expand_path(&config.dotfolder_path).expect("failed to expand dotfolder"));
+        let mut manager = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
+        let dotfolder_path = PathBuf::from(
+            expand_path(&manager.config.dotfolder_path).expect("failed to expand dotfolder"),
+        );
         let secondary_dotfolder_path =
             dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondry"));
         copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
@@ -288,13 +309,11 @@ mod test {
         assert!(dotfolder_path.exists());
         assert!(secondary_dotfolder_path.exists());
 
-        config.dotfolder_path = String::from("~/secondary");
-        config.save();
+        manager.config.dotfolder_path = String::from("~/secondary");
 
-        let manager = DotManager::new();
         manager.sync();
 
-        for path in &config.paths {
+        for path in &manager.config.paths {
             let (home, dot) = get_home_and_dot_path(path);
             assert!(
                 home.canonicalize()
@@ -308,11 +327,13 @@ mod test {
     #[serial_test::serial]
     fn test_multiple_sync_and_delink_cycles() {
         reset_test_environment();
-        let (config, manager) = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
+        let mut manager = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
+        manager.config.defaults.on_delink = OnDelinkBehavior::Keep;
+
         manager.delink_all();
         for _ in 0..4 {
             manager.sync();
-            for path in &config.paths {
+            for path in &manager.config.paths {
                 // duplicating the paths
                 let (home, dot) = get_home_and_dot_path(path);
                 assert!(
@@ -322,11 +343,49 @@ mod test {
                 );
             }
             manager.delink_all();
-            for path in &config.paths {
+            for path in &manager.config.paths {
                 let (home, dot) = get_home_and_dot_path(path);
                 assert!(home.exists() && !home.is_symlink());
                 assert!(dot.exists() && !dot.is_symlink());
             }
         }
     }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_resync_after_editing_the_config() {
+        reset_test_environment();
+        let _ = sync_config_with_manager(DuplicateBehavior::Ask);
+        let mut manager = DotManager::new();
+        assert_eq!(manager.current_state.paths, manager.config.paths);
+        let paths = mock_dotfile_paths();
+        for path in paths[0..2].to_vec() {
+            assert!(
+                expand_path(&path)
+                    .expect("failed to expand path")
+                    .is_symlink()
+            );
+            manager
+                .config
+                .add_path(path.clone())
+                .expect("TODO: panic message");
+            manager.config.remove_path(path);
+        }
+        let manager = DotManager::new();
+        manager.sync();
+
+        for path in paths[0..2].to_vec() {
+            let path = expand_path(&path).expect("failed to expand path");
+            assert!(path.exists());
+            assert!(!path.is_symlink());
+        }
+        for path in paths[2..].to_vec() {
+            let (home, dot) = get_home_and_dot_path(&path);
+            assert_eq!(home.canonicalize().expect("fail to canonicalize"), dot);
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_delink() {}
 }

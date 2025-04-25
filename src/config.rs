@@ -17,6 +17,9 @@ pub struct Config {
 pub struct Defaults {
     #[serde(default = "default_duplicate_behavior")]
     pub on_duplicate: DuplicateBehavior,
+
+    #[serde(default = "default_on_delink_behavior")]
+    pub on_delink: OnDelinkBehavior,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,6 +33,15 @@ pub enum DuplicateBehavior {
 }
 fn default_duplicate_behavior() -> DuplicateBehavior {
     DuplicateBehavior::Ask
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OnDelinkBehavior {
+    Remove,
+    Keep,
+}
+fn default_on_delink_behavior() -> OnDelinkBehavior {
+    OnDelinkBehavior::Remove
 }
 
 impl Config {
@@ -71,6 +83,9 @@ impl Config {
         doc["defaults"]["on_duplicate"] =
             toml_edit::value(format!("{:?}", self.defaults.on_duplicate).to_lowercase());
 
+        doc["defaults"]["on_delink"] =
+            toml_edit::value(format!("{:?}", self.defaults.on_delink).to_lowercase());
+        
         fs::write(config_file, doc.to_string())
             .expect("Failed to write updated config with preserved comments");
     }
