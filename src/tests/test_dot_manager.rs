@@ -1,4 +1,8 @@
+#[cfg(test)]
+#[allow(dead_code)]
+#[allow(unused_imports)]
 mod test {
+
     use crate::config::DuplicateBehavior;
     use crate::dot_manager::DotManager;
     use crate::utils::{
