@@ -61,5 +61,4 @@ jobs:
           bin: lazydot
           include: LICENSE,README.md
           tar: unix
-          zip: windows
           token: ${{ secrets.GITHUB_TOKEN }}
