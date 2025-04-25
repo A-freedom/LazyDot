@@ -7,31 +7,21 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # build on both x86_64 and ARM Linux
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
           override: true
 
-      - name: Cache cargo registry & index
+      - name: Cache Cargo registry & index
         uses: actions/cache@v3
         with:
           path: |
@@ -39,15 +29,14 @@ jobs:
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build (release)
-        run: cargo build --release --target ${{ matrix.target }} --verbose
+      - name: Build release binary
+        run: cargo build --release --verbose
 
       - name: Run tests
-        run: cargo test --verbose --target ${{ matrix.target }}
+        run: cargo test --verbose
 
-      - name: Upload release binary
-        if: success()
-        uses: actions/upload-artifact@v3
+      - name: Upload executable
+        uses: actions/upload-artifact@v2
         with:
-          name: lazydot-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/lazydot
+          name: lazydot
+          path: target/release/lazydot
