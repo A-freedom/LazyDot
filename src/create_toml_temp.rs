@@ -1,4 +1,4 @@
-use crate::utils::get_home_dir;
+use std::path::PathBuf;
 
 const DEFAULT_CONFIG: &str = r#"
 # Lazydot Configuration File
@@ -13,7 +13,7 @@ dotfolder_path = "~/mydotfolder"
 #     "~/example/.vimrc",
 # ]
 paths = [
-    
+    "~/.config/lazydot.toml",
 ]
 
 [defaults]
@@ -31,10 +31,6 @@ on_duplicate = "ask"
 on_delink = "remove"
 "#;
 
-
-pub fn create_default_config_if_missing() {
-    let config_file = get_home_dir().join(".config/lazydot.toml");
-    if !config_file.exists() {
-        std::fs::write(config_file, DEFAULT_CONFIG).expect("Failed to create default config");
-    }
+pub fn create_default_config(config_file: &PathBuf) {
+    std::fs::write(config_file, DEFAULT_CONFIG).expect("Failed to create default config");
 }

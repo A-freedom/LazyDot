@@ -1,17 +1,19 @@
+/// TODO: Tests are outdated and messy. I've been patching them after each new feature, which is not ideal.
+/// They should be fully rewritten to properly cover all current features and behaviors.
 #[cfg(test)]
 #[allow(dead_code)]
 #[allow(unused_imports)]
 mod test {
 
-    use crate::config::{DuplicateBehavior, OnDelinkBehavior};
+    use crate::config::{Config, DuplicateBehavior, OnDelinkBehavior};
     use crate::dot_manager::DotManager;
     use crate::utils::{
         copy_all, delete, expand_path, get_home_and_dot_path, get_home_dir_string,
         get_path_in_dotfolder, init_config_with_paths, mock_dotfile_paths, reset_test_environment,
         sync_config_with_manager,
     };
-    use std::fs;
     use std::path::PathBuf;
+    use std::{env, fs};
 
     fn read_file(path: &std::path::Path) -> String {
         fs::read_to_string(path).expect("Failed to read file")
@@ -65,6 +67,7 @@ mod test {
         assert_eq!(
             config.paths,
             vec![
+                "~/.config/lazydot.toml",
                 "~/.bashrc",
                 "~/.config/app1",
                 "~/.config/app2/app_config2.toml"
@@ -101,6 +104,9 @@ mod test {
 
         manager.delink(&manager.config.paths);
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, _) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -114,6 +120,9 @@ mod test {
         manager.sync();
 
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, _) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -144,6 +153,9 @@ mod test {
         manager.delink(&manager.config.paths);
 
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             if dot.is_dir() {
                 continue;
@@ -155,6 +167,9 @@ mod test {
         manager.sync();
 
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -182,6 +197,9 @@ mod test {
         manager.delink(&manager.config.paths);
 
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -193,6 +211,9 @@ mod test {
         manager.sync();
 
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             if home.is_dir() {
                 continue;
@@ -242,6 +263,9 @@ mod test {
         reset_test_environment();
         let manager = sync_config_with_manager(DuplicateBehavior::Ask);
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             delete(&home);
             assert!(!home.exists());
@@ -250,12 +274,18 @@ mod test {
         manager.delink_all();
 
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             assert!(!home.exists());
             assert!(dot.exists());
         }
         manager.sync();
         for path in &manager.config.paths {
+            if path == "~/.config/lazydot.toml" {
+                continue;
+            }
             let (home, dot) = get_home_and_dot_path(path);
             assert!(
                 home.canonicalize()
@@ -274,12 +304,14 @@ mod test {
             expand_path(&manager.config.dotfolder_path).expect("failed to expand dotfolder"),
         );
         let secondary_dotfolder_path =
-            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondry"));
+            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondary"));
         copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
         delete(&dotfolder_path);
         assert!(!dotfolder_path.exists());
         assert!(secondary_dotfolder_path.exists());
 
+        env::set_current_dir(&secondary_dotfolder_path).expect("failed to set current dir");
+        manager.config = Config::new();
         manager.config.dotfolder_path = String::from("~/secondary");
         manager.config.save();
         manager.sync();
@@ -303,7 +335,7 @@ mod test {
             expand_path(&manager.config.dotfolder_path).expect("failed to expand dotfolder"),
         );
         let secondary_dotfolder_path =
-            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondry"));
+            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondary"));
         copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
 
         assert!(dotfolder_path.exists());
