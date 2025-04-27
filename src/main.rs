@@ -29,19 +29,19 @@ fn main() {
     }
 
     match args.command {
-        Command::Register(add_args) => {
+        Command::Add(add_args) => {
             let mut config = Config::new();
             for path in add_args.paths {
                 config.add_path(path).expect("failed to add path");
             }
         }
-        Command::Unregister(remove_args) => {
+        Command::Remove(remove_args) => {
             let mut config = Config::new();
             for path in remove_args.paths {
                 config.remove_path(path);
             }
         }
-        Command::Deploy(_apply_args) => {
+        Command::Sync(_apply_args) => {
             let manager = DotManager::new();
             manager.sync();
         }
