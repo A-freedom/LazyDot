@@ -1,236 +1,253 @@
-# Lazydot
 
-Lazydot is a Rust-based tool to help you manage and deploy your dotfiles effortlessly. It automates creating symbolic links for your configuration files, making it easy to keep your environment consistent across multiple machines.
+# LazyDot
+
+> **Tame your dotfiles. Stop silent breakage. Deploy with confidence.**
+
+---
+
+## What’s the Problem?
+
+**Stow is lazy.** It doesn’t track what you actually stowed —  
+New files? Not linked. Deleted files? Still hanging around.  
+Your dotfiles silently **rot** over time.
+
+---
+
+## What’s the Solution?
+
+**LazyDot** **explicitly tracks** your dotfiles, keeping your environment consistent and portable across machines.  
+It’s simple: you add files → LazyDot manages them → No surprises.
+
+---
 
 ## Features
 
-- Manage your dotfiles in one central repository.
-- Automatically create symbolic links from your dotfiles repo to the right places on your system.
-- Customize behavior using a simple `config.toml` file.
+- ✅ **Explicit tracking** — only manage what you add.
+- ✅ **Sync safely** — add, remove, fix broken links anytime.
+- ✅ **Cross-platform binaries** — install in seconds.
+- ✅ **Simple CLI** — no bloated configs needed.
+- ✅ **Portable repos** — use local lazydot.toml without home config.
+
+---
 
 ## Installation
-### For install you have a few option
-- **you could use the installtion script** `recomended`
-    #### just run this script it will download the excutalbe in install it in your ```~/.local/bin/``` and also it will give autocomlation.
 
-    ```bash
-    wget some/install/script/yet/to/be/writen
-    ```
+### Option 1: One-line Script (Recommended)
 
-- **We could just download the excutalbe from the [github release](https://github.com/A-freedom/lazydot/releases) and live you life with it, you cloud install it yourself of use it as portable with you dotfiles repo.**
+```bash
+curl -s https://raw.githubusercontent.com/A-freedom/lazydot/main/install.sh | bash
+```
+This installs LazyDot to `~/.local/bin/` and sets up shell autocompletion.
 
-- **Last you cold just build it form the source. this is if you could not find you platfrom your "cupy_system arch" , do not be afread this is quit easy just flow the flowing instractions.**
+---
 
-    1. Clone the repository:
+### Option 2: Download Prebuilt Binary
 
-        ```bash
-        git clone https://github.com/A-freedom/lazydot.git
-        cd lazydot
-        ```
+Grab the latest release from [GitHub Releases](https://github.com/A-freedom/lazydot/releases) and move it anywhere in your `$PATH`.
 
-    2. Build the project:
-    will you  will need to have [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed
-        ```bash
-        cargo build --release
-        ```
-    3. you will find the excutalbe named `lazydot` inside `target/release/`. And you can run it using 
-        ```bash
-        ./target/release/lazydot
-        ```
-## Usage
+---
 
+### Option 3: Build from Source
 
-### Commands
-- `r -- register`  Add one or more dotfile paths to your config. (No files are changed yet.) 
-- `u -- unregister` Remove one or more paths from your config. (No files are changed yet.)
-- `d -- deploy` - Deploy all symlinks according to the current config. Also cleans up stale links.
-- `D -- disable-link` - Unlink specified symlinks and restore real files without touching config.
-- `h -- help` — Show a help message
+If your platform isn’t supported:
+```bash
+git clone https://github.com/A-freedom/lazydot.git
+cd lazydot
+cargo build --release
+```
+The binary will be in `target/release/lazydot`.
+
+---
+
+## Quick Usage
+
+**Add dotfiles:**
+
+```bash
+lazydot add ~/.bashrc ~/.config/nvim
+lazydot sync
+```
+
+You can also add all files inside a directory at once using a wildcard (`*`):
+
+```bash
+lazydot add ~/.config/*
+```
+
+**Remove tracked dotfiles:**
+
+```bash
+lazydot remove ~/.bashrc
+lazydot sync
+```
+
+The wildcard can also be used with `remove`:
+
+```bash
+lazydot remove ~/.config/*
+```
+
+---
+
+## Commands Overview
+
+| Command        | Shortcut | Description                                                         |
+|:---------------|:---------|:--------------------------------------------------------------------|
+| `add`          | `-a`     | Add one or more paths to config (no symlinks yet, must sync after). |
+| `remove`       | `-r`     | Remove paths from config (must sync after to apply changes).        |
+| `sync`         | `-s`     | Create/update symlinks and clean up stale links.                    |
+| `disable-link` | `-d`     | Unlink one or all paths without changing config.                    |
+| `help`         | `-h`     | Show help message.                                                  |
+
+---
 
 ## Use Cases & Examples
 
-- ## **Creating a brand-new dotfiles setup**  
+### 🚀 **Setting Up Dotfiles from Scratch**
 
-    1- Start by registering the paths you want to manage, no matter where you currently are: 
+```bash
+lazydot add ~/.bashrc ~/.config/nvim
+lazydot sync
+```
 
-    
-    ```bash
-    lazydot register <path1> <path2> ...
-    ``` 
-    This will add the paths to your  `~/.config/lazydot.toml` (No symlinks are created yet.)
-        
-    2- Deploy the registered paths:
-    ```bash
-    lazydot deploy
-    ```
-    This will:
+- This registers your files into the config and creates symlinks.
+- **By default**, your actual dotfiles will be expected to exist inside the dotfolder path.
+- The default dotfolder is: `~/mydotfolder`
+- You can change this path inside your `~/.config/lazydot.toml` if needed.
 
-    - Create symlinks for the listed files.
+---
 
-    - Remove any stale symlinks that are no longer in the config.
+### ✂️ **Stop Managing a File**
 
-- ### **Stopping lazydot from managing a file** 
-    If you want to stop managing a file:
+```bash
+lazydot remove ~/.zshrc
+lazydot sync
+```
+The link is safely removed.
 
-    1- Unregister the path from the config:
-    ```bash
-    lazydot unregister <path1> <path2> ... 
-    ```
-    2- Deploy again: 
-    ```bash
-    lazydot deploy
-    ```
-- ###  **Temporarily disabling a link without touching config**
-    Temporarily disabling a link without touching config
-    ```bash
-    lazydot disable-link <path>
-    ```
-    This will:
+---
 
-    - Unlink the file.
+### 🔌 **Temporarily Disable a Link**
 
-    - Restore the real file from the dotfolder.
+Disable a specific link:
+```bash
+lazydot disable-link ~/.bashrc
+```
 
-    - Leave the config and dotfolder untouched.
-    - also you can you the flag `--all` with `disable-link` to distable all the links manage by your config
-    ```bahs
-    lazydot disable-link --all  
-    ```
-- ###  **Editing the Config Manually**  
-    You can manually edit the `~/.config/lazydot.toml` file if you prefer.
-    ```python
-    # lazydot configuration file
+Disable **all** managed links:
+```bash
+lazydot disable-link --all
+```
 
-    # path to the dotfiles folder (must start with ~/)
-    dotfolder_path = "~/mydotfolder"
+---
 
-    # list of dotfile paths to manage (each must start with ~/ or /)
-    paths = [
-        "~/.config/lazydot.toml"
-        "~/.bashrc",
-        "~/.zshrc,
-        "~/.config/nvim",
-    ]
+### 🛠️ **Edit Config Manually**
 
-    [defaults]
-    # behavior when a duplicate file is found at the destination:
-    # - ask: prompt the user to decide
-    # - overwritehome: overwrite the file in home with the dotfolder version
-    # - overwritedotfile: overwrite the dotfolder copy with the home version
-    # - backuphome: backup the home file before overwriting
-    # - skip: do nothing and skip the conflict
-    on_duplicate = "ask"
+Edit `~/.config/lazydot.toml`:
 
-    # behavior after a link is disabled (delinked):
-    # - remove: remove the file from the dotfolder after restoring it to home (default)
-    # - keep: keep the file in the dotfolder even after restoring it to home
-    on_delink = "remove"
-    ```   
-    however lazydot will not immediately apply changes.
-    you must run:
-    ```bash
-    lazydot deploy
-    ```
-    Afterward to sync your actual files with the new config.  
-    **Important**: Manual config edits only change the intent.
-    deploy actually applies the changes to your system.
-- ###  **About the Current State File**
-    LazyDot keeps track of deployed files using a hidden file: `<your dotfolder>/current_state.toml 
+```toml
+dotfolder_path = "~/mydotfolder"
 
-    This file:
+paths = [
+  "~/.bashrc",
+  "~/.config/nvim",
+]
 
-    - Tracks which paths have been deployed.
+[defaults]
+on_duplicate = "ask"  # options: ask, overwritehome, overwritedotfile, backuphome, skip
+on_delink = "remove"  # options: remove, keep
+```
 
-    - Allows deploy to clean up stale or removed paths safely.
+Then:
 
-    If current_state.toml is missing LazyDot will assume a fresh deploy and rebuild it automatically.
-    You won't lose your files, but you might have to manually clean old symlinks if things drifted badly.
+```bash
+lazydot sync
+```
 
-    #### **Tip**: It’s safe to use version control like `git` to manage your dotfile repo, And add  `current_state.toml` if you want consistent setups across systems,
-    but it’s not strictly required.`
+*Changes are applied only after syncing.*
 
-- ##  **Using LazyDot with a Cloned Dotfiles Repo**
-    Once you've cloned a dotfiles repo, you have a few ways to connect it to LazyDot depending on how your setup is structured.
-- ### Option 1: Use lazydot.toml Inside the Repo
+---
 
-    If your repo already contains a lazydot.toml config file, you can run LazyDot directly from inside the repo without needing `~/.config/lazydot.toml`.
-    ```bash
-    cd ~/dotfiles
-    lazydot deploy
-    ```
-    LazyDot will automatically use `./lazydot.toml` if `~/.config/lazydot`.toml is missing.   
-    This allows fully portable dotfiles repos — no need to copy anything into `~/.config/`, Lazydot will create a link for `lazydot.toml`.   
-    
-- ### Option 2: Generate a LazyDot Template Config
+### 📦 **Using LazyDot with a Cloned Repo**
 
-    If your repo doesn’t have a config yet, just run:
-    ```bash
-    lazydot
-    ```
-    This will create a default config at `~/.config/lazydot.toml`.
-    You can then edit it manually:
+If you've cloned a repo that contains a `lazydot.toml` file:
 
-    ```python
-    # lazydot configuration file
+- **LazyDot checks for a global config at `~/.config/lazydot.toml` first.**
+  - If global config exists, LazyDot uses it directly.
+  - If global config is missing, LazyDot looks for a local config (`./lazydot.toml`).
+    - **If local config found:** LazyDot uses it and creates a symlink from the global path to this local config.
+    - **If local config not found:** LazyDot generates a fresh default config at the global path.
 
-    # path to the dotfiles folder (must start with ~/)
-    dotfolder_path = "~/mydotfolder"
+To use it, simply run LazyDot from within your repo directory:
 
-    # list of dotfile paths to manage (each must start with ~/ or /)
-    paths = [
-        "~/.config/lazydot.toml"
-        "~/.bashrc",
-        "~/.zshrc,
-        "~/.config/nvim",
-    ]
+```bash
+cd ~/dotfiles
+lazydot sync
+```
 
-    [defaults]
-    # behavior when a duplicate file is found at the destination:
-    # - ask: prompt the user to decide
-    # - overwritehome: overwrite the file in home with the dotfolder version
-    # - overwritedotfile: overwrite the dotfolder copy with the home version
-    # - backuphome: backup the home file before overwriting
-    # - skip: do nothing and skip the conflict
-    on_duplicate = "ask"
+---
 
-    # behavior after a link is disabled (delinked):
-    # - remove: remove the file from the dotfolder after restoring it to home (default)
-    # - keep: keep the file in the dotfolder even after restoring it to home
-    on_delink = "remove"
-    ```   
-    however lazydot will not immediately apply changes.
-    you must run:
-    ```bash
-    lazydot deploy
-    ```
-    Then just deploy:
-    ```bash
-    lazydot deploy
-    ```
-- ### Option 3: Register Paths Using Commands
+## About Adding Non-Existent Files
 
-    You can also use the CLI to register paths one by one:
-    ``` bash
-    lazydot register ~/.bashrc ~/.vimrc
-    ```
-    - ⚠️ Important: Currently, LazyDot requires the paths to exist inside your $HOME. If the file doesn’t exist yet, register will return an error. This may change in the future.
+You can add paths even if they don't exist in your home directory, as long as the corresponding files already exist inside your configured dotfolder.  
+Simply run:
 
+```bash
+lazydot add path_inside_your_dotfolder
+```
 
+**Important:**
+- A working global config must exist with the correct `dotfolder_path` pointing to your repository.
+- If no config exists, LazyDot will create a new one with a default `dotfolder_path`, which might not match your cloned repo unless you update it manually.
 
+---
 
+## About the Current State File
 
+LazyDot keeps a hidden `current_state.toml` inside your dotfolder to:
+- Track deployed files.
+- Allow safe cleaning and resyncing.
 
+**If missing:** LazyDot will rebuild it automatically on the next sync.
 
+**Tip:** It’s strongly recommended to use version control like `git` for your entire dotfiles repository,  
+including the `current_state.toml` if you want absolutely consistent setups across machines.
 
+---
 
+## Why LazyDot Over Stow?
 
+|                                      | `stow` | `lazydot` |
+|:-------------------------------------|:-------|:----------|
+| Tracks files explicitly              | ❌      | ✅         |
+| Detects missing/broken links         | ❌      | ✅         |
+| Portable repo support                | ❌      | ✅         |
+| Automatic recovery from manual edits | ❌      | ✅         |
+
+---
 
 ## Contributing
 
-Contributions are welcome! Fork the repo, make your changes, and open a pull request.
+Contributions are welcome!
+
+- Found a bug? **Open an issue.**
+- Have an idea? **Request a feature.**
+- Want to help shape the future? **Participate in discussions.**
+
+Fork it. Improve it. Make dotfiles suck less.
+
+---
 
 ## License
 
-MIT License
+[Apache License 2.0](./LICENSE-2.0.txt)
 
+---
+
+# TL;DR
+
+> If you’re tired of `stow` silently breaking your dotfiles behind your back,  
+> **LazyDot is the fix you've been waiting for.**
+
+---
 
