@@ -28,14 +28,6 @@ pub fn check_path(path: &str) -> Result<String, String> {
     Ok(format!("~/{}", relative.display()))
 }
 
-pub fn get_home_dir() -> PathBuf {
-    PathBuf::from(get_home_dir_string())
-}
-
-pub fn get_home_dir_string() -> String {
-    env::var("HOME").expect("missing HOME environment variable")
-}
-
 pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     let mut path = if input.starts_with("~/") {
         let home = get_home_dir();
@@ -52,6 +44,13 @@ pub fn expand_path(input: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+pub fn get_home_dir() -> PathBuf {
+    PathBuf::from(get_home_dir_string())
+}
+
+pub fn get_home_dir_string() -> String {
+    env::var("HOME").expect("missing HOME environment variable")
+}
 pub fn delete(path: &PathBuf) {
     if path.is_file() || path.is_symlink() {
         fs::remove_file(path).expect(&format!("Failed to delete {}", path.display()));
@@ -89,7 +88,7 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
             let entry = entry?;
             let entry_path = entry.path();
 
-            // Compute a relative path from source root
+            // Compute a relative path from the source root
             let relative = entry_path
                 .strip_prefix(source_path)
                 .expect("Failed to get relative path");
@@ -115,13 +114,6 @@ fn get_relative_path(path: &String) -> Result<PathBuf, String> {
         .expect("Failed to strip prefix from home dir")
         .to_path_buf();
     Ok(relative_path)
-}
-
-pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> {
-    let config = Config::new();
-    let relative_path = get_relative_path(&path_in_home.to_str().unwrap().to_string())?;
-    let path_in_dotfolder = expand_path(&config.dotfolder_path)?.join(&relative_path);
-    Ok(path_in_dotfolder)
 }
 
 /// Resets test environment by:
@@ -190,7 +182,6 @@ pub fn init_config_with_paths() -> Config {
 
 /// Prepares and syncs the config using the given duplication strategy
 #[allow(dead_code)]
-
 pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> DotManager {
     let mut config = init_config_with_paths();
     config.defaults.on_duplicate = duplicate_behavior;
@@ -204,4 +195,11 @@ pub fn get_home_and_dot_path(path: &String) -> (PathBuf, PathBuf) {
     let home = expand_path(path).expect("failed to find home path");
     let dot = get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
     (home, dot)
+}
+
+pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> {
+    let config = Config::new();
+    let relative_path = get_relative_path(&path_in_home.to_str().unwrap().to_string())?;
+    let path_in_dotfolder = expand_path(&config.dotfolder_path)?.join(&relative_path);
+    Ok(path_in_dotfolder)
 }
