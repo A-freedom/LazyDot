@@ -1,4 +1,3 @@
-
 # LazyDot
 
 > **Tame your dotfiles. Stop silent breakage. Deploy with confidence.**
@@ -17,6 +16,15 @@ Your dotfiles silently **rot** over time.
 
 **LazyDot** **explicitly tracks** your dotfiles, keeping your environment consistent and portable across machines.  
 It’s simple: you add files → LazyDot manages them → No surprises.
+
+---
+
+## Philosophy
+
+LazyDot follows the Unix philosophy: **Do one thing, and do it well.**
+- Lazydot manages dotfiles by explicitly tracking and syncing them using a configuration file.
+- Features outside this narrow scope (e.g., automatic discovery, file encryption, template generation) will **never** be implemented.
+- Lazydot prioritizes clarity, simplicity, and reliability over feature bloat.
 
 ---
 
@@ -101,6 +109,36 @@ lazydot remove ~/.config/*
 
 ---
 
+## Behavior Clarifications
+
+1. **Explicit Dotfile Management**
+   - Lazydot does **NOT** automatically discover files. Users must manually specify the files they want to manage.
+   - This is a **feature, not a bug**. Lazydot ensures the user is in full control.
+
+2. **Conflict Resolution**
+   - If a file already exists, Lazydot uses the `on_duplicate` option.
+     - Default behavior: Ask the user how to proceed.
+     - Other behaviors: Overwrite or skip, based on user settings.
+
+3. **Unlinking Files**
+   - Removing a path from the config does **not** instantly delete symlinks.
+   - After running `lazydot sync`, outdated links will be automatically fixed or cleaned.
+   - No manual intervention is needed.
+
+4. **Version Control**
+   - Users are **strongly encouraged** to manage their `.config/lazydot.toml` using Git.
+   - Planned Feature: **Optional auto-commit** after each successful sync if changes are detected in the config.
+
+5. **Security (Encryption)**
+   - Lazydot does **not** implement encryption.
+   - Managing secrets should be handled separately, preferably through Git solutions or external tools.
+
+6. **Templating**
+   - Lazydot does **not** support dynamic templating of config files.
+   - Files are symlinked exactly as they are.
+
+---
+
 ## Use Cases & Examples
 
 ### 🚀 **Setting Up Dotfiles from Scratch**
@@ -110,11 +148,6 @@ lazydot add ~/.bashrc ~/.config/nvim
 lazydot sync
 ```
 
-- This registers your files into the config and creates symlinks.
-- **By default**, your actual dotfiles will be expected to exist inside the dotfolder path.
-- The default dotfolder is: `~/mydotfolder`
-- You can change this path inside your `~/.config/lazydot.toml` if needed.
-
 ---
 
 ### ✂️ **Stop Managing a File**
@@ -123,7 +156,6 @@ lazydot sync
 lazydot remove ~/.zshrc
 lazydot sync
 ```
-The link is safely removed.
 
 ---
 
@@ -154,8 +186,8 @@ paths = [
 ]
 
 [defaults]
-on_duplicate = "ask"  # options: ask, overwritehome, overwritedotfile, backuphome, skip
-on_delink = "remove"  # options: remove, keep
+on_duplicate = "ask"
+on_delink = "remove"
 ```
 
 Then:
@@ -164,21 +196,17 @@ Then:
 lazydot sync
 ```
 
-*Changes are applied only after syncing.*
-
 ---
 
 ### 📦 **Using LazyDot with a Cloned Repo**
 
 If you've cloned a repo that contains a `lazydot.toml` file:
 
-- **LazyDot checks for a global config at `~/.config/lazydot.toml` first.**
-  - If global config exists, LazyDot uses it directly.
-  - If global config is missing, LazyDot looks for a local config (`./lazydot.toml`).
-    - **If local config found:** LazyDot uses it and creates a symlink from the global path to this local config.
-    - **If local config not found:** LazyDot generates a fresh default config at the global path.
+- LazyDot checks for a global config at `~/.config/lazydot.toml` first.
+- If not found, it will look for `./lazydot.toml` locally.
+- It can auto-link your local config to the global one if needed.
 
-To use it, simply run LazyDot from within your repo directory:
+Run LazyDot from within your repo:
 
 ```bash
 cd ~/dotfiles
@@ -189,29 +217,27 @@ lazydot sync
 
 ## About Adding Non-Existent Files
 
-You can add paths even if they don't exist in your home directory, as long as the corresponding files already exist inside your configured dotfolder.  
-Simply run:
-
-```bash
-lazydot add path_inside_your_dotfolder
-```
-
-**Important:**
-- A working global config must exist with the correct `dotfolder_path` pointing to your repository.
-- If no config exists, LazyDot will create a new one with a default `dotfolder_path`, which might not match your cloned repo unless you update it manually.
+You can add paths even if they don't exist in your home directory, as long as they exist inside your dotfolder.  
+If not, LazyDot will error out.
 
 ---
 
 ## About the Current State File
 
-LazyDot keeps a hidden `current_state.toml` inside your dotfolder to:
+LazyDot keeps a `current_state.toml` inside your dotfolder to:
 - Track deployed files.
 - Allow safe cleaning and resyncing.
 
-**If missing:** LazyDot will rebuild it automatically on the next sync.
+**If missing:** It rebuilds automatically during sync.
 
-**Tip:** It’s strongly recommended to use version control like `git` for your entire dotfiles repository,  
-including the `current_state.toml` if you want absolutely consistent setups across machines.
+---
+
+## Future Work Plan
+
+- Implement `lazydot status` to show pending changes without applying them.
+- Implement `lazydot restore-config` to restore missing or broken configs.
+- Auto-commit option for Git after syncs.
+- More documentation improvements.
 
 ---
 
@@ -246,8 +272,16 @@ Fork it. Improve it. Make dotfiles suck less.
 
 # TL;DR
 
-> If you’re tired of `stow` silently breaking your dotfiles behind your back,  
-> **LazyDot is the fix you've been waiting for.**
+> If you want a tool that \"does everything,\" use something else.
+> 
+> Some suggestions:
+> - [chezmoi](https://www.chezmoi.io/)
+> - [yadm](https://yadm.io/)
+> - [dotdrop](https://github.com/deadc0de6/dotdrop)
+> - [rcm](https://github.com/thoughtbot/rcm)
+
+> If you want **full manual control** over your dotfiles with **zero magic, zero surprises**, welcome to LazyDot.
 
 ---
+
 
