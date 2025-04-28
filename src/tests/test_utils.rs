@@ -5,8 +5,8 @@ pub(crate) mod test {
     use crate::utils::{check_path, copy_all, delete, expand_path, get_home_dir};
     use std::fs;
     use std::path::PathBuf;
-    use tempfile::TempDir;
     use tempfile::tempdir;
+    use tempfile::TempDir;
 
     pub fn create_file(path: &PathBuf, content: &str) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -35,7 +35,7 @@ pub(crate) mod test {
             std::env::set_var("HOME", dir.path());
         }
 
-        // Copy fake home structure if it exists
+        // Copy a fake home structure if it exists
         let fake_env_path = PathBuf::from("src/tests/Data/fake_env");
         if !fake_env_path.exists() {
             panic!("fake_env not found at {:?}", fake_env_path);
@@ -55,7 +55,7 @@ pub(crate) mod test {
         let tmp_home = setup_env();
         let test_path = "~/some/path";
         let expected = tmp_home.path().join("some/path");
-        let expanded = expand_path(test_path).unwrap();
+        let expanded = expand_path(test_path);
         assert_eq!(expanded, expected);
     }
 
@@ -65,7 +65,7 @@ pub(crate) mod test {
         let _tmp_home = setup_env();
         let cwd = std::env::current_dir().unwrap();
         let rel_path = "some/relative/path";
-        let expanded = expand_path(rel_path).unwrap();
+        let expanded = expand_path(rel_path);
         assert_eq!(expanded, cwd.join(rel_path));
     }
 
@@ -88,9 +88,11 @@ pub(crate) mod test {
         let outside_path = "/etc/passwd";
         let result = check_path(outside_path);
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            "Path is outside of the home directory"
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .contains("is not in the home directory"),
         );
     }
 

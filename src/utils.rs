@@ -6,42 +6,41 @@ use std::{env, fs};
 use tempfile::tempdir;
 
 pub fn check_path(path: &str) -> Result<String, String> {
-    let input_path = expand_path(path)?;
+    let input_path = expand_path(path);
 
     if !input_path.exists() {
-        return Err("Path does not exist".to_string());
+        return Err(format!("path {} does not exist", path));
     }
 
     let home = get_home_dir();
 
     if input_path.eq(&home) {
-        return Err("You can't add your home as path".to_string());
+        return Err(format!("path {} is the home directory", path));
     }
     if !input_path.starts_with(&home) {
-        return Err("Path is outside of the home directory".to_string());
+        return Err(format!("path {} is not in the home directory", path));
     }
 
     let relative = input_path
         .strip_prefix(&home)
-        .map_err(|_| "Failed to strip home prefix".to_string())?;
+        .map_err(|_| format!("path {} is not in the home directory", path))?;
 
     Ok(format!("~/{}", relative.display()))
 }
 
-pub fn expand_path(input: &str) -> Result<PathBuf, String> {
+pub fn expand_path(input: &str) -> PathBuf {
     let mut path = if input.starts_with("~/") {
         let home = get_home_dir();
         home.join(&input[2..])
     } else {
         PathBuf::from(input)
     };
-
     if !path.is_absolute() {
-        let cwd = env::current_dir().map_err(|_| "Failed to get current directory".to_string())?;
+        let cwd = env::current_dir().expect("Failed to get current directory");
         path = cwd.join(path);
     }
 
-    Ok(path)
+    path
 }
 
 pub fn get_home_dir() -> PathBuf {
@@ -72,15 +71,21 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
     if !source_path.exists() {
         return Err(std::io::Error::new(
             ErrorKind::NotFound,
-            format!("Source does not exist: {}", source_path.display()),
+            format!("{} can't copy path dose not exists", source_path.display()),
         ));
     }
     if source_path.is_file() {
-        let parent = target_path
-            .parent()
-            .expect("Failed to get parent directory");
-        fs::create_dir_all(parent).expect("Failed to create directory");
-        fs::copy(source_path, target_path).expect("Failed to copy file");
+        let parent = target_path.parent().expect(&format!(
+            "Failed to get parent of {}",
+            target_path.display()
+        ));
+        fs::create_dir_all(parent)
+            .expect(&format!("Failed to create directory {}", parent.display()));
+        fs::copy(source_path, target_path).expect(&format!(
+            "Failed to copy {} to {}",
+            source_path.display(),
+            target_path.display()
+        ));
         return Ok(());
     }
     if source_path.is_dir() {
@@ -89,9 +94,10 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
             let entry_path = entry.path();
 
             // Compute a relative path from the source root
-            let relative = entry_path
-                .strip_prefix(source_path)
-                .expect("Failed to get relative path");
+            let relative = entry_path.strip_prefix(source_path).expect(&format!(
+                "Failed to strip prefix from {}",
+                entry_path.display()
+            ));
 
             let nested_target = target_path.join(relative);
             copy_all(&entry_path, &nested_target)?;
@@ -99,7 +105,10 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
     } else {
         return Err(std::io::Error::new(
             ErrorKind::Other,
-            "Can not copy what is not a file or directory",
+            format!(
+                "Failed to copy {} is not a file or directory",
+                source_path.display()
+            ),
         ));
     }
     Ok(())
@@ -107,7 +116,7 @@ pub fn copy_all(source_path: &PathBuf, target_path: &PathBuf) -> Result<(), std:
 
 fn get_relative_path(path: &String) -> Result<PathBuf, String> {
     // Expand ~ or $HOME to an absolute path
-    let path_in_home = expand_path(path).expect("Failed to expand path");
+    let path_in_home = expand_path(path);
 
     let relative_path = path_in_home
         .strip_prefix(get_home_dir())
@@ -128,14 +137,14 @@ pub fn reset_test_environment() {
     if env::var(project_root_var).is_err() {
         let cwd = env::current_dir().expect("Failed to get current dir");
         unsafe {
-            std::env::set_var(
+            env::set_var(
                 project_root_var,
                 cwd.to_str().expect("Invalid UTF-8 in cwd"),
             );
         }
     }
-    let root = std::env::var(project_root_var).expect("Missing lazydot_path_test var");
-    std::env::set_current_dir(&root).expect("Failed to set current dir");
+    let root = env::var(project_root_var).expect("Missing lazydot_path_test var");
+    env::set_current_dir(&root).expect("Failed to set current dir");
 
     // Create a new temporary home directory
     let temp_home_path = tempdir().expect("Failed to create temp dir").into_path();
@@ -192,7 +201,7 @@ pub fn sync_config_with_manager(duplicate_behavior: DuplicateBehavior) -> DotMan
 }
 
 pub fn get_home_and_dot_path(path: &String) -> (PathBuf, PathBuf) {
-    let home = expand_path(path).expect("failed to find home path");
+    let home = expand_path(path);
     let dot = get_path_in_dotfolder(&home).expect("failed to get path inside the dotfolder");
     (home, dot)
 }
@@ -200,6 +209,6 @@ pub fn get_home_and_dot_path(path: &String) -> (PathBuf, PathBuf) {
 pub fn get_path_in_dotfolder(path_in_home: &PathBuf) -> Result<PathBuf, String> {
     let config = Config::new();
     let relative_path = get_relative_path(&path_in_home.to_str().unwrap().to_string())?;
-    let path_in_dotfolder = expand_path(&config.dotfolder_path)?.join(&relative_path);
+    let path_in_dotfolder = expand_path(&config.dotfolder_path).join(&relative_path);
     Ok(path_in_dotfolder)
 }

@@ -4,7 +4,6 @@
 #[allow(dead_code)]
 #[allow(unused_imports)]
 mod test {
-
     use crate::config::{Config, DuplicateBehavior, OnDelinkBehavior};
     use crate::dot_manager::DotManager;
     use crate::utils::{
@@ -20,7 +19,7 @@ mod test {
     }
 
     fn is_symlink(path: &str) -> bool {
-        expand_path(path).unwrap().is_symlink()
+        expand_path(path).is_symlink()
     }
 
     fn assert_is_symlink(path: &str) {
@@ -45,7 +44,8 @@ mod test {
         ];
         for path in invalids {
             let err = config.add_path(path.to_string()).unwrap_err();
-            assert!(err.contains("Path does not exist"), "Error: {}", err);
+            println!("{}", err);
+            assert!(err.contains("does not exist"), "Error: {}", err);
         }
 
         let home_path = get_home_dir_string();
@@ -118,7 +118,7 @@ mod test {
         }
 
         manager.sync();
-
+        assert_correct_sync(&manager);
         for path in &manager.config.paths {
             if path == "~/.config/lazydot.toml" {
                 continue;
@@ -165,6 +165,7 @@ mod test {
         }
 
         manager.sync();
+        assert_correct_sync(&manager);
 
         for path in &manager.config.paths {
             if path == "~/.config/lazydot.toml" {
@@ -282,6 +283,8 @@ mod test {
             assert!(dot.exists());
         }
         manager.sync();
+        assert_correct_sync(&manager);
+
         for path in &manager.config.paths {
             if path == "~/.config/lazydot.toml" {
                 continue;
@@ -300,11 +303,8 @@ mod test {
     fn test_resync_with_existing_broken_symlinks() {
         reset_test_environment();
         let mut manager = sync_config_with_manager(DuplicateBehavior::Ask);
-        let dotfolder_path = PathBuf::from(
-            expand_path(&manager.config.dotfolder_path).expect("failed to expand dotfolder"),
-        );
-        let secondary_dotfolder_path =
-            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondary"));
+        let dotfolder_path = PathBuf::from(expand_path(&manager.config.dotfolder_path));
+        let secondary_dotfolder_path = dotfolder_path.join(expand_path("~/secondary"));
         copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
         delete(&dotfolder_path);
         assert!(!dotfolder_path.exists());
@@ -315,15 +315,9 @@ mod test {
         manager.config.dotfolder_path = String::from("~/secondary");
         manager.config.save();
         manager.sync();
+        assert_correct_sync(&manager);
 
-        for path in &manager.config.paths {
-            let (home, dot) = get_home_and_dot_path(path);
-            assert!(
-                home.canonicalize()
-                    .expect("failed to canonicalize")
-                    .eq(&dot)
-            );
-        }
+        assert_correct_sync(&manager);
     }
 
     #[test]
@@ -331,11 +325,8 @@ mod test {
     fn test_resync_with_existing_symlinks() {
         reset_test_environment();
         let mut manager = sync_config_with_manager(DuplicateBehavior::OverwriteHome);
-        let dotfolder_path = PathBuf::from(
-            expand_path(&manager.config.dotfolder_path).expect("failed to expand dotfolder"),
-        );
-        let secondary_dotfolder_path =
-            dotfolder_path.join(expand_path("~/secondary").expect("failed to expand secondary"));
+        let dotfolder_path = PathBuf::from(expand_path(&manager.config.dotfolder_path));
+        let secondary_dotfolder_path = dotfolder_path.join(expand_path("~/secondary"));
         copy_all(&dotfolder_path, &secondary_dotfolder_path).expect("failed to copy secondary");
 
         assert!(dotfolder_path.exists());
@@ -344,15 +335,7 @@ mod test {
         manager.config.dotfolder_path = String::from("~/secondary");
 
         manager.sync();
-
-        for path in &manager.config.paths {
-            let (home, dot) = get_home_and_dot_path(path);
-            assert!(
-                home.canonicalize()
-                    .expect("failed to canonicalize")
-                    .eq(&dot)
-            );
-        }
+        assert_correct_sync(&manager);
     }
 
     #[test]
@@ -365,21 +348,25 @@ mod test {
         manager.delink_all();
         for _ in 0..4 {
             manager.sync();
-            for path in &manager.config.paths {
-                // duplicating the paths
-                let (home, dot) = get_home_and_dot_path(path);
-                assert!(
-                    home.canonicalize()
-                        .expect("failed to canonicalize")
-                        .eq(&dot)
-                );
-            }
+            assert_correct_sync(&manager);
             manager.delink_all();
             for path in &manager.config.paths {
                 let (home, dot) = get_home_and_dot_path(path);
                 assert!(home.exists() && !home.is_symlink());
                 assert!(dot.exists() && !dot.is_symlink());
             }
+        }
+    }
+
+    fn assert_correct_sync(manager: &DotManager) {
+        for path in &manager.config.paths {
+            // duplicating the paths
+            let (home, dot) = get_home_and_dot_path(path);
+            assert!(
+                home.canonicalize()
+                    .expect("failed to canonicalize")
+                    .eq(&dot)
+            );
         }
     }
 
@@ -392,11 +379,7 @@ mod test {
         assert_eq!(manager.current_state.paths, manager.config.paths);
         let paths = mock_dotfile_paths();
         for path in paths[0..2].to_vec() {
-            assert!(
-                expand_path(&path)
-                    .expect("failed to expand path")
-                    .is_symlink()
-            );
+            assert!(expand_path(&path).is_symlink());
             manager
                 .config
                 .add_path(path.clone())
@@ -405,9 +388,9 @@ mod test {
         }
         let manager = DotManager::new();
         manager.sync();
-
+        assert_correct_sync(&manager);
         for path in paths[0..2].to_vec() {
-            let path = expand_path(&path).expect("failed to expand path");
+            let path = expand_path(&path);
             assert!(path.exists());
             assert!(!path.is_symlink());
         }
