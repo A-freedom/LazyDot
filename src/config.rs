@@ -1,5 +1,5 @@
 use crate::create_toml_temp::create_default_config;
-use crate::utils::{check_path, delete, expand_path, get_home_dir};
+use crate::utils::{check_path, delete, expand_path, get_home_dir, get_home_dir_string};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::fs::symlink;
@@ -49,7 +49,7 @@ fn default_on_delink_behavior() -> OnDelinkBehavior {
 impl Config {
     pub fn new() -> Config {
         let global_config_path = get_home_dir().join(".config/lazydot.toml");
-        let local_config_path = expand_path(".config/lazydot.toml").expect("Failed to expand path");
+        let local_config_path = expand_path(".config/lazydot.toml");
         let case_checked = (global_config_path.exists(), local_config_path.exists());
         let config_file: PathBuf;
         if case_checked.0 {
@@ -58,15 +58,15 @@ impl Config {
             if global_config_path.is_symlink() {
                 delete(&global_config_path);
             }
-            symlink(&local_config_path, &global_config_path).expect("Failed to symlink config file");
+            symlink(&local_config_path, &global_config_path)
+                .expect("Failed to symlink the local config file with the global config file");
             config_file = local_config_path;
         } else {
             create_default_config(&global_config_path);
             config_file = global_config_path
         }
 
-        let content = fs::read_to_string(&config_file)
-            .unwrap_or_else(|_| panic!("Unable to read config file: {}", config_file.display()));
+        let content = fs::read_to_string(&config_file).expect("Unable to read config file");
 
         let config: Config = toml::from_str(&content).expect("Failed to parse lazydot.toml");
 
@@ -79,9 +79,15 @@ impl Config {
         self.validate_config();
 
         let config_file = get_home_dir().join(".config/lazydot.toml");
-
+        if !config_file.exists() {
+            eprintln!(
+                "Config file does not exist. Creating a new one at {}",
+                config_file.display()
+            );
+            create_default_config(&config_file);
+        }
         let content =
-            fs::read_to_string(&config_file).expect("Failed to read existing config for update");
+            fs::read_to_string(&config_file).expect("Failed to read the config for update");
 
         let mut doc = content
             .parse::<DocumentMut>()
@@ -102,8 +108,7 @@ impl Config {
         doc["defaults"]["on_delink"] =
             toml_edit::value(format!("{:?}", self.defaults.on_delink).to_lowercase());
 
-        fs::write(config_file, doc.to_string())
-            .expect("Failed to write updated config with preserved comments");
+        fs::write(config_file, doc.to_string()).expect("Failed to write updated config");
     }
 
     fn restrict_to_home(&mut self, path: String) -> Result<String, String> {
@@ -142,16 +147,27 @@ impl Config {
     }
     fn validate_config(&self) {
         for path in &self.paths {
-            if !(path.starts_with("~/") || path.starts_with("/")) {
+            if path.starts_with("~/") {
+                continue;
+            }
+            let path = PathBuf::from(path);
+            if path.is_relative() {
                 panic!(
-                    "Invalid path: \"{}\" every path must start with `~/` or `/`",
-                    path
+                    "Invalid path: \"{}\" paths should not be relative.",
+                    path.display()
+                );
+            }
+            if !path.starts_with(get_home_dir_string()) {
+                panic!(
+                    "Invalid path: \"{}\" paths should be in the home directory.",
+                    path.display()
                 );
             }
         }
+
         if !self.dotfolder_path.starts_with("~/") {
             panic!(
-                "Invalid path: \"{}\" every path must start with `~/`",
+                "Invalid path: \"{}\" the dotfolder path should be in the home directory.",
                 self.dotfolder_path
             );
         }
