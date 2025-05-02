@@ -240,7 +240,7 @@ lazydot check
 
 ## Configuration File
 
-`~/.config/lazydot.toml` or `./lazydot.toml`
+`~/.config/lazydot.toml` or `your_dotfolder/.config/lazydot.toml`
 
 ```toml
 # Required: where dotfiles are stored
@@ -262,13 +262,14 @@ on_delink = "remove"      # remove, keep
 
 ---
 
-## About the Current State File
+***Note***
 
-LazyDot uses `.current_state.toml` to remember which files are currently linked. It enables:
+LazyDot uses `your_dotfolder/.current_state.toml` to remember which files are currently linked. It enables:
 
 - Safer syncs
 - Smarter cleanup
 
+If you are using version contorl like `git` make sure to __exclude__ it for your repo
 If missing or deleted, LazyDot will regenerate it on next sync.
 
 ---
