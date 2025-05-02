@@ -35,7 +35,7 @@ pub enum Command {
     DisableLink(DisableLinkArgs),
 
     /// Show what would be added or removed on next sync.
-    #[clap(short_flag = 'S')]
+    #[clap(short_flag = 't')]
     Status(StatusArgs),
 
     /// Check the current state of each managed path.
