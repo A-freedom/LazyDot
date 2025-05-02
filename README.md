@@ -212,7 +212,7 @@ lazydot check
 
 ### 🔍 Explicit File Management
 
-- LazyDot does NOT auto-discover files
+- LazyDot does NOT auto-discover paths
 - You must explicitly add what you want tracked
 
 ### ⚠️ Conflict Resolution
