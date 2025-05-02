@@ -34,6 +34,13 @@ pub enum Command {
     #[clap(short_flag = 'd')]
     DisableLink(DisableLinkArgs),
 
+    /// Show what would be added or removed on next sync.
+    #[clap(short_flag = 'S')]
+    Status(StatusArgs),
+
+    /// Check the current state of each managed path.
+    #[clap(short_flag = 'c')]
+    Check(CheckArgs),
     /// Output shell completion script for a given shell.
     #[clap(short_flag = 'g', hide = true)]
     GenerateCompletion {
@@ -41,6 +48,11 @@ pub enum Command {
         shell: clap_complete::Shell,
     },
 }
+#[derive(Debug, Args)]
+pub struct StatusArgs {}
+
+#[derive(Debug, Args)]
+pub struct CheckArgs {}
 
 #[derive(Debug, Args)]
 pub struct AddArgs {

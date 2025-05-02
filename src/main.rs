@@ -6,17 +6,17 @@ mod tests {
     pub mod test_utils;
 }
 mod create_toml_temp;
-mod utils;
 mod current_state;
+mod utils;
 
 use crate::args::Command;
+use crate::config::OnDelinkBehavior;
 use crate::dot_manager::DotManager;
 use args::LazyDotsArgs;
 use clap::{CommandFactory, Parser};
-use clap_complete::{Shell, generate};
+use clap_complete::{generate, Shell};
 use config::Config;
 use std::io;
-use crate::config::OnDelinkBehavior;
 
 fn main() {
     let args = LazyDotsArgs::parse();
@@ -60,6 +60,14 @@ fn main() {
                     manager.delink(&delink_args.paths);
                 }
             }
+        }
+        Command::Status(_) => {
+            let manager = DotManager::new();
+            manager.status();
+        }
+        Command::Check(_) => {
+            let manager = DotManager::new();
+            manager.check();
         }
     }
 }
