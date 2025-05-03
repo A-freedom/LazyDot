@@ -16,9 +16,10 @@ lazydot sync
 Done. Repeatable, portable, no hidden magic.
 
 <p align="center">
-  <a href="#installation">Installation</a> •
-  <a href="#quick-usage">Quick Usage</a> •
-  <a href="#pro-tips">Pro Tips</a>
+  <a href="#installation">Installation</a>  |   
+  <a href="#quick-usage">Quick Usage</a>  |   
+  <a href="#pro-tips">Pro Tips</a>  |   
+  <a href="#contributing">Contributing</a>
 </p>  
 
 
@@ -107,76 +108,6 @@ cargo build --release
 
 ---
 
-## Creating a New Dotfile Repo
-
-1. Create your dotfolder:
-
-  ```bash
-  mkdir ~/dotfiles
-  ```  
-
-2. Set it in config (`~/.config/lazydot.toml`):
-
-  ```toml
-  dotfolder_path = "~/dotfiles"
-  ```  
-
-3. Move your files into it, then register them:
-
-  ```bash
-  lazydot add ~/.bashrc ~/.zshrc
-  lazydot sync
-  ```   
-
----
-
-## Starting from an Existing Repo
-
-1. Clone your repo:
-
-```bash
-git clone git@github.com:you/dotfiles.git ~/dotfiles
-```
-
-2. Run LazyDot from that directory:
-
-```bash
-cd ~/dotfiles
-lazydot sync
-```
-
-It will:
-
-- Use `~/.config/lazydot.toml` if available
-- Otherwise link to local `./lazydot.toml`
-
----
-
-## Adding Paths Without Existing Home Files
-
-You can add paths that don’t exist in `$HOME` **as long as** the corresponding file exists in the dotfolder.
-Useful when bootstrapping a new system or pre-building your config:
-
-```bash
-lazydot add ~/.config/wayland/hyprland.conf
-```
-
----
-
-## Commands Overview
-
-| Command        | Shortcut | Description                                                      |
-|----------------|----------|------------------------------------------------------------------|
-| `add`          | `-a`     | Add one or more paths to config (run `sync` to apply)            |
-| `remove`       | `-r`     | Remove paths from config (run `sync` to apply)                   |
-| `sync`         | `-s`     | Apply changes, create or update symlinks, and clean broken links |
-| `disable-link` | `-d`     | Unlink dotfiles temporarily without changing config              |
-| `status`       | `-t`     | View link status of all tracked files                            |
-| `check`        | `-c`     | Validate link health and print a report                          |
-| `help`         | `-h`     | Show help message                                                |
-
----
-
 ## Quick Usage
 
 ### Add and Sync
@@ -205,6 +136,72 @@ Check status and validate links:
 lazydot status
 lazydot check
 ```
+
+---
+
+## Creating a New Dotfile Repo
+
+1. Create your dotfolder:
+
+  ```bash
+  mkdir ~/dotfiles
+  ```  
+
+2. Set it in config (`~/.config/lazydot.toml`):
+
+  ```toml
+  dotfolder_path = "~/dotfiles"
+  ```  
+
+3. Move your files into it, then register them:
+
+  ```bash
+  lazydot add ~/.bashrc ~/.zshrc
+  lazydot sync
+  ```   
+
+> **Note:** You can add paths that don’t exist in `$HOME` **as long as** the corresponding file exists in the dotfolder.
+> This is useful when you're setting up lazydot.toml for an existing dotfiles repo:
+>
+> ```bash
+> lazydot add DOTFOLDER_PATH/.config/wayland/hyprland.conf
+> ```
+
+---
+
+## Starting from an Existing Repo
+
+1. Clone your repo:
+
+```bash
+git clone git@github.com:you/dotfiles.git ~/dotfiles
+```
+
+2. Run LazyDot from that directory:
+
+```bash
+cd ~/dotfiles
+lazydot sync
+```
+
+It will:
+
+- Use `~/.config/lazydot.toml` if available
+- Otherwise link to local `./lazydot.toml`
+
+---
+
+## Commands Overview
+
+| Command        | Shortcut | Description                                                      |
+|----------------|----------|------------------------------------------------------------------|
+| `add`          | `-a`     | Add one or more paths to config (run `sync` to apply)            |
+| `remove`       | `-r`     | Remove paths from config (run `sync` to apply)                   |
+| `sync`         | `-s`     | Apply changes, create or update symlinks, and clean broken links |
+| `disable-link` | `-d`     | Unlink dotfiles temporarily without changing config              |
+| `status`       | `-t`     | View link status of all tracked files                            |
+| `check`        | `-c`     | Validate link health and print a report                          |
+| `help`         | `-h`     | Show help message                                                |
 
 ---
 
@@ -248,7 +245,7 @@ lazydot check
 dotfolder_path = "~/dotfiles"
 
 # Dotfiles to track
-paths = [
+paths = [t
     "~/.bashrc",
     "~/.config/nvim/init.vim",
     "~/.config/lazydot.toml"
@@ -302,6 +299,22 @@ lazydot sync
 ```
 
 Your system is restored.
+
+---
+
+## Contributing
+
+Contributions are welcome! Whether it's bug reports, feature suggestions, code improvements, or just feedback — open an issue or PR.
+
+If you're unsure where to start:
+
+  - Check the [issues](https://github.com/Dark-CLI/lazydot/issues)
+
+  - Suggest improvements to the CLI or config UX
+
+  - Test it on your setup and report what breaks  
+    
+***No bureaucracy, no CLA. Just make the tool better.***
 
 ---
 
