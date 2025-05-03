@@ -321,5 +321,3 @@ If you're unsure where to start:
 ## License
 
 [Apache License 2.0](./LICENSE-2.0.txt)
-
----
