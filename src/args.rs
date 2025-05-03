@@ -3,7 +3,7 @@ use clap::{Args, Parser, Subcommand};
 #[derive(Debug, Parser)]
 #[clap(
     author,
-    version = "0.2",
+    version = "v0.4.0",
     about = "Lazydot: CLI tool to manage and deploy your dotfiles efficiently",
     long_about = "Lazydot automates symlink creation for your configuration files, enabling consistent environments across multiple systems.",
     disable_help_subcommand = true
